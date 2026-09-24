@@ -12,9 +12,11 @@ import PetriDish from "../components/PetriDish";
 const PETRI_TIMES = [0, 12, 24, 36, 48];
 
 export default function WorkbenchScreen() {
-  const { simulation, updateSim, completeMission, addXP, assessment } = useStore();
+  const { simulation, updateSim, completeMission, completeSharedModule, addXP, studentAssessment, user } = useStore();
+  const target = user.experience === "professional" ? "professional" : "student";
+  const assessment = studentAssessment;
   const drug = DRUGS[simulation.activeDrug];
-  const [challengeDone, setChallengeDone] = useState(assessment.completedMissions.includes(4));
+  const [challengeDone, setChallengeDone] = useState(target === "professional" ? useStore.getState().professionalAssessment.workbenchDone : assessment.completedMissions.includes(4));
 
   const { points, metrics } = useMemo(() => simulate(simulation), [simulation]);
 
@@ -27,7 +29,8 @@ export default function WorkbenchScreen() {
   function claimChallenge() {
     if (metrics.isOptimal && !challengeDone) {
       addXP(50);
-      completeMission(4, 150);
+      if (target === "student") completeMission(4, 150);
+      else completeSharedModule("workbench", "professional");
       setChallengeDone(true);
     }
   }

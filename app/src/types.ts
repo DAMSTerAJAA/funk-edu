@@ -1,15 +1,42 @@
 // ============================================================
-// FUNK EDU — Types (PRD §4.1)
+// FUNK EDU — Shared domain types
 // ============================================================
 
-export type Role = "mahasiswa" | "residen" | "dokter_umum" | "farmasis";
+export type Experience = "student" | "professional";
+export type ProfessionalRole = "dokter_umum" | "residen" | "farmasis";
+export type VerificationStatus = "not_started" | "submitting" | "pending" | "verified" | "rejected" | "unavailable";
 
-export type DrugId =
-  | "piperacillin_tazo"
-  | "meropenem"
-  | "vancomycin"
-  | "gentamicin"
-  | "levofloxacin";
+export interface ProfessionalVerificationRequest {
+  legalName: string;
+  professionalRole: ProfessionalRole;
+  registrationNumber: string;
+  institution: string;
+  specialtyOrProgram: string;
+  consent: true;
+}
+
+export interface ProfessionalVerificationState {
+  status: VerificationStatus;
+  requestId: string | null;
+  request: ProfessionalVerificationRequest | null;
+  verifiedRole: ProfessionalRole | null;
+  verifiedName: string | null;
+  rejectionReason: string | null;
+  lastCheckedAt: string | null;
+}
+
+export interface ProfessionalAssessmentState {
+  baselineScore: number | null;
+  baselineDone: boolean;
+  workbenchDone: boolean;
+  clinicalRoomDone: boolean;
+  prescriptionAuditDone: boolean;
+  posttestScore: number | null;
+  posttestDone: boolean;
+  professionalCertificateUnlocked: boolean;
+}
+
+export type DrugId = "piperacillin_tazo" | "meropenem" | "vancomycin" | "gentamicin" | "levofloxacin";
 
 export interface DrugInfo {
   id: DrugId;
@@ -17,15 +44,15 @@ export interface DrugInfo {
   klass: string;
   aware: "ACCESS" | "WATCH" | "RESERVE";
   category: "time" | "concentration" | "auc";
-  halfLifeH: number; // jam
-  vdPerKg: number; // L/kg
-  proteinBinding: number; // fraksi (0-1)
+  halfLifeH: number;
+  vdPerKg: number;
+  proteinBinding: number;
   doseOptionsG: number[];
   tauOptionsH: number[];
   tinfOptionsH: number[];
   micOptions: number[];
   targetDesc: string;
-  targetPct: number; // target attainment %
+  targetPct: number;
   spectrum: "narrow" | "broad" | "reserve";
 }
 
@@ -69,7 +96,10 @@ export interface AssessmentState {
 
 export interface UserState {
   name: string;
-  role: Role;
+  email: string;
+  experience: Experience;
+  onboardingIntent: Experience;
+  professionalVerification: ProfessionalVerificationState;
   xp: number;
   coins: number;
   streakDays: number;

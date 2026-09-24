@@ -12,86 +12,28 @@
 
 ---
 
-### 2. Arsitektur Alur Pengguna (Detailed Multi-Tier User Journey & State Flow)
+### 2. Arsitektur Alur Pengguna: Student dan Verified Professional
 
-```
-                          ┌─────────────────────────────────────────────────┐
-                          │         [01. AUTH & ROLE ONBOARDING]            │
-                          │  • SSO Medis / Email Institusi                  │
-                          │  • Role Selector (Mahasiswa, GP, Sp.PD, Farmasis)│
-                          │  • Quick Demo Switcher (dr. Althea Vance)       │
-                          └────────────────────────┬────────────────────────┘
-                                                   │
-                                                   ▼
-                          ┌─────────────────────────────────────────────────┐
-                          │      [02. PRE-TEST ASSESSMENT SUITE]            │
-                          │  • 10 Soal Vignette Klinis Terintegrasi         │
-                          │  • Timer Mundur 25 Menit (Session Lock)         │
-                          │  • Diagnostic Baseline Radar (5 Domain)         │
-                          └────────────────────────┬────────────────────────┘
-                                                   │
-                                                   ▼
-                          ┌─────────────────────────────────────────────────┐
-                          │   [03. DASHBOARD LAB FUNDAMENTALS & MISSIONS]   │
-                          │  • Top HUD: XP Counter, Lab Coins, Streak, Rank │
-                          │  • Modular Level Progression Gate (Level 1-6)   │
-                          └────────────────────────┬────────────────────────┘
-                                                   │
-         ┌─────────────────────────────────────────┼─────────────────────────────────────────┐
-         ▼                                         ▼                                         ▼
-┌───────────────────────────┐    ┌───────────────────────────────────┐     ┌───────────────────────────────────┐
-│   [6 MISI INTERAKTIF]     │    │   [PK/PD WORKBENCH SIMULATOR]     │     │   [CLINICAL DECISION ROOM]        │
-│                           │    │                                   │     │                                   │
-│ 1. Infection Detective    │    │ • Pemilihan 5 Agen Antimikroba    │     │ • Perjalanan Pasien 8 Milestones  │
-│    (Centor Score & Viral) │    │ • Slider Dosis Gram & Interval τ  │     │   (D0 IGD s/d D7 Discharge)       │
-│ 2. Target Hunter          │    │ • Toggle Durasi Infus (30m vs EI) │     │ • Formulasi Terapi Empiris IDSA   │
-│    (MOA Seluler Bakteri)  │    │ • Real-time SVG Plasma Curve      │     │ • Evaluasi Antibiogram Sputum     │
-│ 3. Spectrum Strategy      │    │ • Kalkulator %fT > MIC Attainment │     │ • 48-72h Antibiotic Time-Out      │
-│    (AWaRe & Usus Radar)   │    │ • Dinamika Koloni Cawan Petri     │     │ • De-eskalasi IV ke Oral Switch   │
-│ 4. MIC Battle Lab         │    │ • Donut Bakterisidal vs Resisten  │     │ • Spider Chart 6 Domain           │
-│    (Kinetika fT vs Cmax)  │    └─────────────────┬─────────────────┘     └─────────────────┬─────────────────┘
-│ 5. Resistance Evolution   │                      │                                         │
-│    (Seleksi Klon Mutan)   │                      │                                         │
-│ 6. Wise Guardian          │                      │                                         │
-│    (Audit 5T EMR Preskripsi)                     │                                         │
-└─────────────┬─────────────┘                      │                                         │
-              │                                    │                                         │
-              └────────────────────────────────────┼─────────────────────────────────────────┘
-                                                   │
-                                                   ▼
-                          ┌─────────────────────────────────────────────────┐
-                          │         [04. FINAL COMPREHENSIVE CHALLENGE]     │
-                          │  • Kasus Kritis Sepsis Nosokomial ICU           │
-                          │  • Ujian Mandiri Tanpa Bantuan Hint             │
-                          │  • Penalti XP pada Keputusan Suboptimal         │
-                          └────────────────────────┬────────────────────────┘
-                                                   │
-                                                   ▼
-                          ┌─────────────────────────────────────────────────┐
-                          │         [05. POST-TEST EVALUATION SUITE]        │
-                          │  • 10 Soal Kasus Lanjutan                       │
-                          │  • Passing Grade Ketat: Minimal 80% (8/10)      │
-                          │  • Evaluasi Delta Peningkatan Pemahaman         │
-                          └────────────────────────┬────────────────────────┘
-                                                   │
-                                                   ▼
-                          ┌─────────────────────────────────────────────────┐
-                          │   [06. LAPORAN KOMPETENSI & SERTIFIKASI RESMI]  │
-                          │  • Scorecard A+ & Radar 5 Domain Kompetensi     │
-                          │  • 4 Lencana Heksagonal Riset Terbuka           │
-                          │  • Sertifikat Digital PDF & QR Validator ID     │
-                          │  • Hash Integritas Medis PPRA Kemenkes 2026     │
-                          └─────────────────────────────────────────────────┘
-```
+FUNK EDU tetap satu SPA dengan satu account state, tetapi akses efektif dipisahkan menjadi dua experience:
 
-#### Rincian Transisi State Antar-Layar:
-1. **State `AUTH_GUEST`**: Pengguna baru atau demo mengakses layar login/registrasi. Memilih role menentukan bobot kasus default dan glosarium referensi.
-2. **State `PRETEST_LOCKED`**: Pre-test bersifat wajib diselesaikan sekali di awal untuk membangun *baseline scoring*. Sesi dibatasi timer 25 menit. Skor pre-test otomatis mengunci data awal pada Radar Kompetensi.
-3. **State `MISSION_PROGRESSION`**: Misi 1 sampai 6 dirancang terbuka secara bertahap (*unlock on previous success*), dengan umpan balik instan jika klinisi mengambil keputusan kontraproduktif (misal: memberikan sefalosporin pada etiologi rhinovirus viral akan memicu penalti -30 XP dan alert disbiosis usus).
-4. **State `WORKBENCH_RUNNING`**: Pengguna bebas bereksperimen dengan kombinasi obat dan durasi infus. Tombol "Jalankan Simulasi" menghitung ulang matriks kinetika dalam memori klien dan merender grafik kurva plasma 48 jam.
-5. **State `CLINICAL_DECISION_STAGES`**: Pasien rawat inap mengikuti alur hari Day 0 s/d Day 7. Setiap pemilihan obat empiris, pembacaan kultur sputum, hingga *Antibiotic Time-Out 48–72h* memiliki cabang konsekuensi langsung terhadap durasi rawat inap dan skor efisiensi farmasi.
-6. **State `POSTTEST_PASSED`**: Hanya dapat diakses setelah 6 Misi dan Kasus CAP selesai. Bila skor $\ge 80\%$, kredensial unik diterbitkan (misal: `FE-ABX-2026-8829`) dan sertifikat PDF resmi dibuka untuk diunduh.
+1. **Track selection**: onboarding pertama memilih `Student` atau `Professional`, lalu mengisi nama dan email.
+2. **Student registration**: masuk ke Student pre-test, Student dashboard, enam misi fundamental, Decision Room, post-test, dan Student Completion Certificate.
+3. **Professional registration**: tidak langsung memperoleh akses. Pengguna masuk ke full-page Professional Verification dengan langkah `Profesi`, `Data registrasi`, `Review`, dan `Status`.
+4. **Student upgrade**: Student dapat membuka verifikasi dari Student dashboard. Status pending, rejected, atau unavailable tidak mengubah effective experience dan tidak menghapus XP, badges, skor, atau mission completion Student.
+5. **Verified Professional**: hanya result `verified` yang mengubah `experience` menjadi `professional`. Setelah itu pengguna wajib menyelesaikan Professional Clinical Baseline enam soal sebelum Workbench, Clinical Decision Room, atau Prescription Audit.
+6. **Professional completion**: Professional post-test terbuka setelah tiga modul klinis selesai. Passing grade tetap `>= 8/10` dan menghasilkan Professional Track Certificate yang berbeda dari Student certificate.
 
+State efektif yang dirender:
+
+- `student`: Student dashboard dan progression aktif.
+- `verification pending/rejected/unavailable`: effective experience tetap Student; initial Professional applicant tetap berada pada verification gate sampai memilih **Continue as Student**.
+- `verified professional`: Professional dashboard aktif, verified role tampil sebagai persona badge, dan Student fundamentals hanya menjadi historical evidence.
+
+Route policy terpusat menjaga boundary pada setiap `navigate()` dan redirect action. Tombol disabled hanya affordance visual, bukan enforcement. Verified Professional diarahkan dari Student dashboard ke Professional dashboard; pengguna yang belum verified diarahkan keluar dari semua Professional routes; Professional yang belum menyelesaikan baseline diarahkan ke `professional-baseline`.
+
+Professional verification saat ini adalah adapter dummy deterministik di balik `ProfessionalVerificationService`. Fixture `DEMO-VERIFIED-GP`, `DEMO-VERIFIED-RESIDENT`, dan `DEMO-VERIFIED-PHARMACIST` menghasilkan verified role yang cocok; `DEMO-PENDING` menghasilkan pending; input non-fixture menghasilkan rejected. UI wajib menampilkan **“Simulasi verifikasi — bukan validasi KKI/SATUSEHAT”**. Produksi memerlukan integrasi server-to-server berizin dengan registry/data service Indonesia yang relevan; browser tidak boleh memanggil atau scrape layanan tersebut langsung.
+
+Credential yang dihasilkan adalah educational prototype. Professional certificate menampilkan verified professional role serta disclaimer bahwa credential bukan lisensi profesi atau dokumen verifikasi KKI/SATUSEHAT.
 ---
 
 ### 3. Arsitektur Frontend & Hierarki Komponen UI
@@ -179,19 +121,17 @@
   │     │     ├── <TimeOutDecisionModule action="de-escalate" />
   │     │     └── <RadarChartSixDomains />
   │     │
-  │     └── [Screen: Laporan Capaian Belajar & Sertifikasi]
-  │           ├── <OverallScoreRadialProgress score="86/100" grade="A+" />
-  │           ├── <DomainMasteryBars (5 Domains) />
-  │           ├── <HexagonalBadgesGallery (4 Badges Unlocked) />
+  │     └── [Screen: Student / Professional Educational Credential]
+  │           ├── <OverallScoreSummary />
+  │           ├── <DomainRadarChart />
   │           ├── <CertificateCredentialCard printable="true" />
-  │           │     ├── <QRValidatorCode />
-  │           │     ├── <DigitalCMOSignature />
-  │           │     └── <CryptoSecurityHash />
+  │           │     ├── <LocalPrototypeCredentialId />
+  │           │     └── <LocalPrototypeIntegrityHash />
   │           └── <ActionExportPDFButtonGroup />
   │
   └── <PersistentLabFooter>
-        ├── <SystemProtocolLegend text="WHO AWaRe v4.8 Verified" />
-        └── <OnlineTelemetryStatus text="NOMINAL • 60 FPS" />
+        ├── <EducationalPrototypeDisclaimer />
+        └── <VerificationSimulationDisclaimer text="Not KKI/SATUSEHAT validation" />
 ```
 
 ---
@@ -203,42 +143,50 @@
 interface GlobalBiolabState {
   user: {
     name: string;
-    role: 'mahasiswa' | 'residen' | 'dokter_umum' | 'farmasis';
+    email: string;
+    experience: 'student' | 'professional';
+    onboardingIntent: 'student' | 'professional';
+    professionalVerification: {
+      status: 'not_started' | 'submitting' | 'pending' | 'verified' | 'rejected' | 'unavailable';
+      requestId: string | null;
+      request: ProfessionalVerificationRequest | null;
+      verifiedRole: 'dokter_umum' | 'residen' | 'farmasis' | null;
+      verifiedName: string | null;
+      rejectionReason: string | null;
+      lastCheckedAt: string | null;
+    };
     xp: number;
     coins: number;
     streakDays: number;
     rank: string;
   };
-  simulation: {
-    activeDrug: 'piperacillin_tazo' | 'meropenem' | 'vancomycin' | 'gentamicin' | 'levofloxacin';
-    doseGrams: number;       // default 4.5
-    intervalHours: number;   // tau: 6, 8, atau 12
-    infusionDurationHours: number; // 0.5 (30 min), 3.0, atau 4.0
-    micTarget: number;       // 0.5, 1.0, 2.0, 4.0, 8.0, 16.0 mcg/mL
-    patientWeightKg: number; // default 70 kg
-    crCl: number;            // default 68 mL/min
-    steadyStateDoses: number;// 8 dosis (48 jam)
-  };
-  metrics: {
-    cMax: number;
-    cTrough: number;
-    auc24: number;
-    fT_over_mic_percentage: number;
-    isOptimalAttained: boolean;
-    colonyCountLive: number;
-    resistantMutantCount: number;
-    microbiomePreservationScore: number;
-  };
-  assessment: {
+  studentAssessment: {
     pretestScore: number | null;
+    pretestDone: boolean;
     posttestScore: number | null;
-    currentQuestionIndex: number;
+    posttestDone: boolean;
     answersMap: Record<number, string>;
-    unlockedMissions: number[]; // e.g. [1, 2, 3, 4, 5, 6]
+    unlockedMissions: number[];
+    completedMissions: number[];
     earnedBadges: string[];
+    finalChallengeDone: boolean;
+    clinicalRoomDone: boolean;
   };
+  professionalAssessment: {
+    baselineScore: number | null;
+    baselineDone: boolean;
+    workbenchDone: boolean;
+    clinicalRoomDone: boolean;
+    prescriptionAuditDone: boolean;
+    posttestScore: number | null;
+    posttestDone: boolean;
+    professionalCertificateUnlocked: boolean;
+  };
+  simulation: SimulationConfig;
 }
 ```
+
+Student assessment tidak disalin ke Professional assessment. Upgrade mempertahankan Student evidence tetapi selalu menginisialisasi Professional baseline, module flags, post-test, dan certificate state sebagai kosong.
 
 #### 4.2. Algoritma Perhitungan Kinetika Plasma Bebas ($fC$) Satu Kompartemen IV Infus
 Untuk obat *Time-Dependent* seperti Piperacillin-Tazobactam:

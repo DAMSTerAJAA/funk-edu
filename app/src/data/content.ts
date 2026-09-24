@@ -151,6 +151,10 @@ export const POSTTEST_QUESTIONS: Question[] = PRETEST_QUESTIONS.map((q, i) => ({
   id: i + 101,
   vignette: "[Lanjutan] " + q.vignette,
 }));
+export const PROFESSIONAL_BASELINE_QUESTIONS: Question[] = [3, 4, 6, 7, 8, 10].map((sourceId, index) => ({
+  ...PRETEST_QUESTIONS.find((question) => question.id === sourceId)!,
+  id: 201 + index,
+}));
 
 // ---------- Clinical Decision Room: kasus CAP ----------
 export interface JourneyDay {

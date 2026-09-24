@@ -1,43 +1,50 @@
 // ============================================================
-// FUNK EDU — Global Store (Zustand, dummy client-side state)
+// FUNK EDU — Global Store (Zustand, prototype client-side state)
 // ============================================================
 import { create } from "zustand";
-import type { AssessmentState, Role, SimulationConfig, UserState } from "./types";
 import { DEFAULT_SIM } from "./data/drugs";
+import { resolveRoute, type Route, type RouteState } from "./routes";
+import { professionalVerificationService } from "./services/professionalVerification";
+import type {
+  AssessmentState,
+  ProfessionalAssessmentState,
+  ProfessionalVerificationRequest,
+  SimulationConfig,
+  UserState,
+} from "./types";
 
-export type Route =
-  | "auth"
-  | "pretest"
-  | "dashboard"
-  | "mission"
-  | "workbench"
-  | "clinical-room"
-  | "final-challenge"
-  | "posttest"
-  | "certificate";
+export type ExamMode = "pre" | "post" | "final" | "professional-baseline" | "professional-post";
+export type LearningTarget = "student" | "professional";
 
 export interface Store {
   route: Route;
   activeMission: number;
   user: UserState;
   simulation: SimulationConfig;
-  assessment: AssessmentState;
-  // exam session
+  studentAssessment: AssessmentState;
+  professionalAssessment: ProfessionalAssessmentState;
   examIndex: number;
-  examMode: "pre" | "post" | "final";
+  examMode: ExamMode;
+  examAnswers: Record<number, string>;
 
-  navigate: (r: Route) => void;
-  setMission: (m: number) => void;
-  login: (name: string, role: Role) => void;
-  quickDemo: () => void;
+  navigate: (route: Route) => void;
+  setMission: (mission: number) => void;
+  registerStudent: (account: { name: string; email: string }) => void;
+  startProfessionalRegistration: (account: { name: string; email: string }) => void;
+  quickDemoStudent: () => void;
+  quickDemoProfessional: () => void;
+  beginProfessionalUpgrade: () => void;
+  continueAsStudent: () => void;
+  submitProfessionalVerification: (request: ProfessionalVerificationRequest) => Promise<void>;
+  checkProfessionalVerification: () => Promise<void>;
   updateSim: (patch: Partial<SimulationConfig>) => void;
-  setExam: (mode: "pre" | "post" | "final") => void;
-  answerQuestion: (idx: number, key: string) => void;
-  setExamIndex: (i: number) => void;
+  setExam: (mode: ExamMode) => void;
+  answerQuestion: (questionId: number, key: string) => void;
+  setExamIndex: (index: number) => void;
   finishExam: (score: number) => void;
-  completeMission: (m: number, xp: number) => void;
+  completeMission: (mission: number, xp: number) => void;
+  completeSharedModule: (module: "workbench" | "clinical-room" | "prescription-audit", target: LearningTarget) => void;
   addXP: (xp: number) => void;
-  setClinicalDone: () => void;
   reset: () => void;
 }
 
@@ -50,20 +57,33 @@ const RANKS: [number, string][] = [
 ];
 
 function rankFor(xp: number): string {
-  for (const [min, r] of RANKS) if (xp >= min) return r;
+  for (const [minimum, rank] of RANKS) if (xp >= minimum) return rank;
   return "Probationer";
 }
 
+const initialVerification: UserState["professionalVerification"] = {
+  status: "not_started",
+  requestId: null,
+  request: null,
+  verifiedRole: null,
+  verifiedName: null,
+  rejectionReason: null,
+  lastCheckedAt: null,
+};
+
 const initialUser: UserState = {
   name: "",
-  role: "mahasiswa",
+  email: "",
+  experience: "student",
+  onboardingIntent: "student",
+  professionalVerification: initialVerification,
   xp: 0,
   coins: 0,
   streakDays: 1,
   rank: "Probationer",
 };
 
-const initialAssessment: AssessmentState = {
+const initialStudentAssessment: AssessmentState = {
   pretestScore: null,
   pretestDone: false,
   posttestScore: null,
@@ -76,108 +96,329 @@ const initialAssessment: AssessmentState = {
   clinicalRoomDone: false,
 };
 
+export const emptyProfessionalAssessment: ProfessionalAssessmentState = {
+  baselineScore: null,
+  baselineDone: false,
+  workbenchDone: false,
+  clinicalRoomDone: false,
+  prescriptionAuditDone: false,
+  posttestScore: null,
+  posttestDone: false,
+  professionalCertificateUnlocked: false,
+};
+
+function routeState(state: Store): RouteState {
+  return {
+    name: state.user.name,
+    experience: state.user.experience,
+    onboardingIntent: state.user.onboardingIntent,
+    professionalVerification: state.user.professionalVerification,
+    studentAssessment: state.studentAssessment,
+    professionalAssessment: state.professionalAssessment,
+  };
+}
+
 export const useStore = create<Store>((set, get) => ({
   route: "auth",
   activeMission: 1,
   user: initialUser,
   simulation: { ...DEFAULT_SIM },
-  assessment: initialAssessment,
+  studentAssessment: initialStudentAssessment,
+  professionalAssessment: emptyProfessionalAssessment,
   examIndex: 0,
   examMode: "pre",
+  examAnswers: {},
 
-  navigate: (route) => set({ route }),
+  navigate: (requested) => {
+    const state = get();
+    set({ route: resolveRoute(requested, routeState(state)) });
+  },
   setMission: (activeMission) => set({ activeMission }),
 
-  login: (name, role) =>
-    set({
-      user: { ...initialUser, name, role, xp: 120, coins: 40, rank: rankFor(120) },
-      route: "pretest",
-      examMode: "pre",
-      examIndex: 0,
-    }),
+  registerStudent: ({ name, email }) => set({
+    user: { ...initialUser, name, email, experience: "student", onboardingIntent: "student", xp: 120, coins: 40, rank: rankFor(120) },
+    route: "pretest",
+    examMode: "pre",
+    examIndex: 0,
+    examAnswers: {},
+  }),
 
-  quickDemo: () =>
-    set({
-      user: { name: "dr. Althea Vance", role: "residen", xp: 120, coins: 40, streakDays: 7, rank: "Probationer" },
-      route: "pretest",
-      examMode: "pre",
-      examIndex: 0,
-    }),
+  startProfessionalRegistration: ({ name, email }) => set({
+    user: { ...initialUser, name, email, experience: "student", onboardingIntent: "professional", xp: 120, coins: 40, rank: rankFor(120) },
+    route: "professional-verification",
+  }),
 
-  updateSim: (patch) => set({ simulation: { ...get().simulation, ...patch } }),
+  quickDemoStudent: () => set({
+    user: { ...initialUser, name: "Alya Pratama", email: "alya@student.demo", xp: 120, coins: 40, streakDays: 7, rank: rankFor(120) },
+    route: "pretest",
+    examMode: "pre",
+  }),
 
-  setExam: (examMode) => set({ examMode, examIndex: 0, assessment: { ...get().assessment, answersMap: {} } }),
-
-  answerQuestion: (idx, key) =>
-    set({
-      assessment: {
-        ...get().assessment,
-        answersMap: { ...get().assessment.answersMap, [idx]: key },
-      },
-    }),
-
-  setExamIndex: (examIndex) => set({ examIndex }),
-
-  finishExam: (score) => {
-    const { examMode, assessment, user } = get();
-    const bonusXP = score * 10;
-    if (examMode === "pre") {
-      set({
-        assessment: { ...assessment, pretestScore: score, pretestDone: true, answersMap: {} },
-        user: { ...user, xp: user.xp + bonusXP, rank: rankFor(user.xp + bonusXP) },
-        route: "dashboard",
-      });
-    } else {
-      const passed = score >= 8;
-      set({
-        assessment: {
-          ...assessment,
-          posttestScore: score,
-          posttestDone: true,
-          finalChallengeDone: examMode === "final" ? true : assessment.finalChallengeDone,
-          answersMap: {},
+  quickDemoProfessional: () => set({
+    user: {
+      ...initialUser,
+      name: "dr. Althea Vance",
+      email: "althea@professional.demo",
+      experience: "professional",
+      onboardingIntent: "professional",
+      professionalVerification: {
+        status: "verified",
+        requestId: "prototype-demo-verified-resident",
+        request: {
+          legalName: "dr. Althea Vance",
+          professionalRole: "residen",
+          registrationNumber: "DEMO-VERIFIED-RESIDENT",
+          institution: "RS Pendidikan Demo",
+          specialtyOrProgram: "Penyakit Dalam",
+          consent: true,
         },
-        user: { ...user, xp: user.xp + bonusXP, rank: rankFor(user.xp + bonusXP) },
-        route: passed ? "certificate" : "dashboard",
+        verifiedRole: "residen",
+        verifiedName: "dr. Althea Vance",
+        rejectionReason: null,
+        lastCheckedAt: new Date().toISOString(),
+      },
+      xp: 120,
+      coins: 40,
+      streakDays: 7,
+      rank: rankFor(120),
+    },
+    professionalAssessment: { ...emptyProfessionalAssessment },
+    route: "professional-baseline",
+    examMode: "professional-baseline",
+  }),
+
+  beginProfessionalUpgrade: () => set({ route: "professional-verification" }),
+  continueAsStudent: () => {
+    const state = get();
+    set({
+      user: { ...state.user, experience: "student", onboardingIntent: "student" },
+      route: state.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
+      examMode: state.studentAssessment.pretestDone ? state.examMode : "pre",
+    });
+  },
+
+  submitProfessionalVerification: async (request) => {
+    const before = get();
+    set({
+      user: {
+        ...before.user,
+        professionalVerification: {
+          ...before.user.professionalVerification,
+          status: "submitting",
+          request,
+          rejectionReason: null,
+        },
+      },
+    });
+    try {
+      const result = await professionalVerificationService.submit(request);
+      const current = get();
+      if (result.status === "verified") {
+        set({
+          user: {
+            ...current.user,
+            name: result.verifiedName,
+            experience: "professional",
+            professionalVerification: {
+              status: "verified",
+              requestId: result.requestId,
+              request,
+              verifiedRole: result.verifiedRole,
+              verifiedName: result.verifiedName,
+              rejectionReason: null,
+              lastCheckedAt: result.checkedAt,
+            },
+          },
+          professionalAssessment: { ...emptyProfessionalAssessment },
+          route: "professional-baseline",
+          examMode: "professional-baseline",
+          examIndex: 0,
+          examAnswers: {},
+        });
+        return;
+      }
+      set({
+        user: {
+          ...current.user,
+          experience: "student",
+          professionalVerification: {
+            status: result.status,
+            requestId: result.requestId,
+            request,
+            verifiedRole: null,
+            verifiedName: null,
+            rejectionReason: result.status === "rejected" ? result.reason : null,
+            lastCheckedAt: result.checkedAt,
+          },
+        },
+      });
+    } catch {
+      const current = get();
+      set({
+        user: {
+          ...current.user,
+          experience: "student",
+          professionalVerification: {
+            ...current.user.professionalVerification,
+            status: "unavailable",
+            request,
+            rejectionReason: null,
+            lastCheckedAt: new Date().toISOString(),
+          },
+        },
       });
     }
   },
 
-  completeMission: (m, xp) => {
-    const { assessment, user } = get();
-    if (assessment.completedMissions.includes(m)) return;
-    const completed = [...assessment.completedMissions, m];
-    const unlocked = assessment.unlockedMissions.includes(m + 1)
-      ? assessment.unlockedMissions
-      : [...assessment.unlockedMissions, Math.min(6, m + 1)];
-    const badgeMap: Record<number, string> = { 1: "detective", 2: "target", 3: "spectrum", 4: "pkpd" };
-    const earnedBadges = badgeMap[m]
-      ? [...assessment.earnedBadges, badgeMap[m]]
-      : assessment.earnedBadges;
-    const newXP = user.xp + xp;
+  checkProfessionalVerification: async () => {
+    const state = get();
+    const verification = state.user.professionalVerification;
+    if (!verification.requestId || !verification.request) return;
+    set({ user: { ...state.user, professionalVerification: { ...verification, status: "submitting" } } });
+    try {
+      const result = await professionalVerificationService.check(verification.requestId);
+      const current = get();
+      if (result.status === "verified") {
+        set({
+          user: {
+            ...current.user,
+            name: verification.request.legalName,
+            experience: "professional",
+            professionalVerification: {
+              status: "verified",
+              requestId: result.requestId,
+              request: verification.request,
+              verifiedRole: result.verifiedRole,
+              verifiedName: verification.request.legalName,
+              rejectionReason: null,
+              lastCheckedAt: result.checkedAt,
+            },
+          },
+          professionalAssessment: { ...emptyProfessionalAssessment },
+          route: "professional-baseline",
+          examMode: "professional-baseline",
+          examIndex: 0,
+          examAnswers: {},
+        });
+        return;
+      }
+      set({
+        user: {
+          ...current.user,
+          professionalVerification: {
+            ...verification,
+            status: result.status,
+            rejectionReason: result.status === "rejected" ? result.reason : null,
+            lastCheckedAt: result.checkedAt,
+          },
+        },
+      });
+    } catch {
+      const current = get();
+      set({ user: { ...current.user, professionalVerification: { ...verification, status: "unavailable", lastCheckedAt: new Date().toISOString() } } });
+    }
+  },
+
+  updateSim: (patch) => set({ simulation: { ...get().simulation, ...patch } }),
+  setExam: (examMode) => set({ examMode, examIndex: 0, examAnswers: {} }),
+  answerQuestion: (questionId, key) => set({ examAnswers: { ...get().examAnswers, [questionId]: key } }),
+  setExamIndex: (examIndex) => set({ examIndex }),
+
+  finishExam: (score) => {
+    const state = get();
+    const bonusXP = score * 10;
+    if (state.examMode === "professional-baseline") {
+      set({
+        professionalAssessment: { ...state.professionalAssessment, baselineScore: score, baselineDone: true },
+        route: "professional-dashboard",
+        examAnswers: {},
+      });
+      return;
+    }
+    if (state.examMode === "professional-post") {
+      const modulesDone = state.professionalAssessment.workbenchDone && state.professionalAssessment.clinicalRoomDone && state.professionalAssessment.prescriptionAuditDone;
+      const passed = score >= 8 && modulesDone;
+      set({
+        professionalAssessment: {
+          ...state.professionalAssessment,
+          posttestScore: score,
+          posttestDone: true,
+          professionalCertificateUnlocked: passed,
+        },
+        route: passed ? "certificate" : "professional-dashboard",
+        examAnswers: {},
+      });
+      return;
+    }
+    if (state.examMode === "pre") {
+      set({
+        studentAssessment: { ...state.studentAssessment, pretestScore: score, pretestDone: true, answersMap: {} },
+        user: { ...state.user, xp: state.user.xp + bonusXP, rank: rankFor(state.user.xp + bonusXP) },
+        route: "student-dashboard",
+        examAnswers: {},
+      });
+      return;
+    }
+    const passed = score >= 8;
     set({
-      assessment: { ...assessment, completedMissions: completed, unlockedMissions: unlocked, earnedBadges },
-      user: { ...user, xp: newXP, coins: user.coins + Math.round(xp / 5), rank: rankFor(newXP) },
+      studentAssessment: {
+        ...state.studentAssessment,
+        posttestScore: score,
+        posttestDone: true,
+        finalChallengeDone: state.examMode === "final" ? true : state.studentAssessment.finalChallengeDone,
+        answersMap: {},
+      },
+      user: { ...state.user, xp: state.user.xp + bonusXP, rank: rankFor(state.user.xp + bonusXP) },
+      route: passed ? "certificate" : "student-dashboard",
+      examAnswers: {},
     });
   },
 
-  addXP: (xp) => {
-    const { user } = get();
-    const newXP = Math.max(0, user.xp + xp);
-    set({ user: { ...user, xp: newXP, coins: user.coins + Math.max(0, Math.round(xp / 10)), rank: rankFor(newXP) } });
+  completeMission: (mission, xp) => {
+    const state = get();
+    if (state.studentAssessment.completedMissions.includes(mission)) return;
+    const completedMissions = [...state.studentAssessment.completedMissions, mission];
+    const unlockedMissions = state.studentAssessment.unlockedMissions.includes(mission + 1)
+      ? state.studentAssessment.unlockedMissions
+      : [...state.studentAssessment.unlockedMissions, Math.min(6, mission + 1)];
+    const badgeMap: Record<number, string> = { 1: "detective", 2: "target", 3: "spectrum", 4: "pkpd" };
+    const earnedBadges = badgeMap[mission] ? [...state.studentAssessment.earnedBadges, badgeMap[mission]] : state.studentAssessment.earnedBadges;
+    const newXP = state.user.xp + xp;
+    set({
+      studentAssessment: { ...state.studentAssessment, completedMissions, unlockedMissions, earnedBadges },
+      user: { ...state.user, xp: newXP, coins: state.user.coins + Math.round(xp / 5), rank: rankFor(newXP) },
+    });
   },
 
-  setClinicalDone: () =>
-    set({ assessment: { ...get().assessment, clinicalRoomDone: true } }),
+  completeSharedModule: (module, target) => {
+    const state = get();
+    if (target === "student") {
+      if (module === "workbench") state.completeMission(4, 150);
+      if (module === "clinical-room") set({ studentAssessment: { ...state.studentAssessment, clinicalRoomDone: true } });
+      if (module === "prescription-audit") state.completeMission(6, 130);
+      return;
+    }
+    const field = module === "workbench" ? "workbenchDone" : module === "clinical-room" ? "clinicalRoomDone" : "prescriptionAuditDone";
+    set({ professionalAssessment: { ...state.professionalAssessment, [field]: true } });
+  },
 
-  reset: () =>
-    set({
-      route: "auth",
-      activeMission: 1,
-      user: initialUser,
-      simulation: { ...DEFAULT_SIM },
-      assessment: initialAssessment,
-      examIndex: 0,
-      examMode: "pre",
-    }),
+  addXP: (xp) => {
+    const state = get();
+    const newXP = Math.max(0, state.user.xp + xp);
+    set({ user: { ...state.user, xp: newXP, coins: state.user.coins + Math.max(0, Math.round(xp / 10)), rank: rankFor(newXP) } });
+  },
+
+  reset: () => set({
+    route: "auth",
+    activeMission: 1,
+    user: initialUser,
+    simulation: { ...DEFAULT_SIM },
+    studentAssessment: initialStudentAssessment,
+    professionalAssessment: emptyProfessionalAssessment,
+    examIndex: 0,
+    examMode: "pre",
+    examAnswers: {},
+  }),
 }));
+
+export type { Route } from "./routes";

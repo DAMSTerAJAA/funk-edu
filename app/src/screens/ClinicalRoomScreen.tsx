@@ -6,7 +6,8 @@ import { useStore } from "../store";
 import { CAP_JOURNEY, ANTIBIOGRAM } from "../data/content";
 
 export default function ClinicalRoomScreen() {
-  const { addXP, setClinicalDone, navigate } = useStore();
+  const { addXP, completeSharedModule, navigate, user } = useStore();
+  const target = user.experience === "professional" ? "professional" : "student";
   const [dayIdx, setDayIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [showCXR, setShowCXR] = useState(false);
@@ -30,8 +31,8 @@ export default function ClinicalRoomScreen() {
   }
 
   function finish() {
-    setClinicalDone();
-    navigate("dashboard");
+    completeSharedModule("clinical-room", target);
+    navigate(target === "professional" ? "professional-dashboard" : "student-dashboard");
   }
 
   return (

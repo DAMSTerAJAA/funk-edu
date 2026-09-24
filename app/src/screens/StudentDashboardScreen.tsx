@@ -14,8 +14,8 @@ const MISSIONS = [
   { id: 6, name: "Wise Guardian", desc: "Audit resep EMR berbasis 5 Benar", icon: "⚖️", xp: 130, color: "var(--secondary)" },
 ];
 
-export default function DashboardScreen() {
-  const { assessment, user, navigate, setMission, setExam } = useStore();
+export default function StudentDashboardScreen() {
+  const { studentAssessment: assessment, user, navigate, setMission, setExam, beginProfessionalUpgrade } = useStore();
   const pre = assessment.pretestScore;
   const baseline = [40, 35, 30, 45, 38];
   const current = [
@@ -80,6 +80,14 @@ export default function DashboardScreen() {
             </div>
           </div>
         </div>
+      </div>
+      <div className="card" style={{ marginBottom: 24, borderColor: user.professionalVerification.status === "verified" ? "var(--secondary)" : "var(--amber)", display: "flex", justifyContent: "space-between", gap: 20, alignItems: "center" }}>
+        <div>
+          <span className={`tag ${user.professionalVerification.status === "pending" ? "tag-amber" : user.professionalVerification.status === "rejected" || user.professionalVerification.status === "unavailable" ? "tag-red" : user.professionalVerification.status === "verified" ? "tag-mint" : "tag-cyan"}`}>PROFESSIONAL TRACK</span>
+          <h3 style={{ marginTop: 10 }}>Upgrade to Professional</h3>
+          <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 5 }}>Preserve fundamentals progress. Professional clinical baseline and modules start separately after verification.</p>
+        </div>
+        <button className="btn btn-secondary" onClick={beginProfessionalUpgrade}>{user.professionalVerification.status === "pending" ? "View pending status" : user.professionalVerification.status === "rejected" || user.professionalVerification.status === "unavailable" ? "Fix verification data" : user.professionalVerification.status === "verified" ? "Professional verified" : "Start verification"}</button>
       </div>
 
       {/* ---------- Mission grid ---------- */}

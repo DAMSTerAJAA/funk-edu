@@ -13,17 +13,17 @@ Platform edukasi web untuk melatih pengambilan keputusan peresepan antimikroba r
 
 | Modul | Deskripsi |
 |---|---|
-| **Auth & Role Onboarding** | Role selector (mahasiswa, GP, residen, farmasis) + quick demo |
-| **Pre/Post-Test Suite** | 10 soal vignette klinis, timer 25 menit, rationale drawer |
-| **6 Misi Interaktif** | Infection Detective, Target Hunter, Spectrum Strategy, MIC Battle Lab, Resistance Evolution, Wise Guardian — unlock bertahap |
+| **Track-first Onboarding** | Pilih Student atau Professional; Professional masuk ke verifikasi sebelum memperoleh akses |
+| **Prototype Professional Verification** | Adapter deterministik dengan status pending/verified/rejected/unavailable; bukan validasi KKI/SATUSEHAT |
+| **Student Assessment Suite** | Pre-test, 6 misi fundamental, Decision Room, post-test, dan Student Completion Certificate |
+| **Professional Clinical Track** | Baseline 6 soal, PK/PD Workbench, Clinical Decision Room, Prescription Audit, post-test, dan Professional Track Certificate |
+| **Progress Preservation** | Fondasi Student tetap tersimpan saat upgrade; tidak memenuhi gate atau sertifikat Professional |
 | **PK/PD Workbench** | Simulasi 1-kompartemen IV infus real-time: 5 agen, slider dosis/τ/Tinf/MIC, kurva plasma 48 jam, %fT>MIC attainment, dinamika cawan petri |
-| **Clinical Decision Room** | Kasus CAP 8 hari: terapi empiris → antibiogram → Antibiotic Time-Out 48–72 jam → de-eskalasi IV→oral |
-| **Sertifikasi** | Scorecard radial, radar 5 domain, 4 lencana heksagonal, credential ID + QR validator |
 
 ## Tech Stack
 
 - **React 19** + **TypeScript** + **Vite**
-- **Zustand** — state management (user, simulasi, assessment)
+- **Zustand** — state management terpisah untuk identitas, Student assessment, Professional assessment, dan verification state
 - **SVG custom** — kurva plasma neon, petri dish, radar chart (tanpa chart library)
 - Font: Space Grotesk · JetBrains Mono · Plus Jakarta Sans
 
@@ -50,11 +50,13 @@ FUNKEDU/
 └── app/                        # Frontend React
     └── src/
         ├── components/         # AppShell, PlasmaCurve, PetriDish, RadarChart
-        ├── data/               # pkEngine (model PK), drugs, content (soal & kasus)
-        ├── screens/            # Auth, Exam, Dashboard, Workbench, ClinicalRoom, Certificate
+        ├── data/               # pkEngine, drugs, content, centralized personas
+        ├── services/           # ProfessionalVerificationService + deterministic prototype adapter
+        ├── screens/            # Track onboarding, verification, Student/Professional dashboards, learning, certificates
         │   └── missions/       # Misi 1–6
-        ├── store.ts            # Zustand global store
-        └── types.ts            # Skema state (PRD §4.1)
+        ├── routes.ts           # Central route metadata, access, and progression guards
+        ├── store.ts            # Zustand identity and separate progression state
+        └── types.ts            # Account, verification, and assessment domain types
 ```
 
 ## Model Farmakokinetik
@@ -68,7 +70,7 @@ Workbench mengimplementasikan model satu-kompartemen IV infus (PRD §4.2):
 
 ## Disclaimer
 
-Konten medis dalam repositori ini adalah **dummy data untuk tujuan edukasi dan pengembangan UI** — bukan panduan terapi klinis. Selalu rujuk pedoman resmi (IDSA/ATS, EUCAST, PPRA Kemenkes) dan antibiogram lokal.
+Konten medis dalam repositori ini adalah **dummy data untuk tujuan edukasi dan pengembangan UI** — bukan panduan terapi klinis. Verifikasi Professional saat ini memakai data fixture deterministik dan selalu ditandai **“Simulasi verifikasi — bukan validasi KKI/SATUSEHAT”**. Memilih track atau profesi tidak memverifikasi identitas dan tidak memberi akses Professional. Integrasi produksi memerlukan layanan server-to-server berizin dengan registry/data service Indonesia yang relevan. Sertifikat yang dihasilkan adalah credential edukasi lokal, bukan lisensi profesi atau dokumen verifikasi eksternal.
 
 ---
 

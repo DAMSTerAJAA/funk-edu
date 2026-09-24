@@ -14,7 +14,8 @@ const FIVE_R = [
 ];
 
 export default function Mission6() {
-  const { completeMission, addXP } = useStore();
+  const { completeMission, completeSharedModule, addXP, user } = useStore();
+  const target = user.experience === "professional" ? "professional" : "student";
   const [checks, setChecks] = useState<string[]>([]);
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
 
@@ -32,7 +33,8 @@ export default function Mission6() {
       const cc = AUDIT_CASES.filter((c) => next[c.id] === c.status).length;
       if (cc === AUDIT_CASES.length) {
         addXP(50);
-        completeMission(6, 130);
+        if (target === "student") completeMission(6, 130);
+        else completeSharedModule("prescription-audit", "professional");
       }
     }
   }

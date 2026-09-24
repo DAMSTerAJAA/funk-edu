@@ -1,252 +1,40 @@
-// ============================================================
-// FUNK EDU — Screen 02/05: Exam Suite (Pre-Test, Post-Test, Final Challenge)
-// ============================================================
 import { useEffect, useMemo, useState } from "react";
+import { POSTTEST_QUESTIONS, PRETEST_QUESTIONS, PROFESSIONAL_BASELINE_QUESTIONS } from "../data/content";
 import { useStore } from "../store";
-import { PRETEST_QUESTIONS, POSTTEST_QUESTIONS } from "../data/content";
 import type { Question } from "../types";
 
 export default function ExamScreen() {
-  const { examMode, examIndex, setExamIndex, assessment, answerQuestion, finishExam, navigate } = useStore();
+  const { examMode, examIndex, setExamIndex, examAnswers, answerQuestion, finishExam, navigate, user } = useStore();
+  const isProfessionalBaseline = examMode === "professional-baseline";
+  const isProfessionalPost = examMode === "professional-post";
   const isFinal = examMode === "final";
-  const questions: Question[] = examMode === "pre" ? PRETEST_QUESTIONS : POSTTEST_QUESTIONS;
+  const questions: Question[] = isProfessionalBaseline ? PROFESSIONAL_BASELINE_QUESTIONS : examMode === "pre" ? PRETEST_QUESTIONS : POSTTEST_QUESTIONS;
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [showRationale, setShowRationale] = useState<number | null>(null);
-  const [locked, setLocked] = useState<Record<number, string>>({});
-
   const q = questions[examIndex];
-  const lockedAnswer = locked[q.id];
+  const selected = examAnswers[q.id];
 
   useEffect(() => {
-    if (timeLeft <= 0) {
-      handleFinish();
-      return;
-    }
-    const id = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearTimeout(id);
+    if (timeLeft <= 0) return;
+    const timer = window.setTimeout(() => setTimeLeft((current) => current - 1), 1000);
+    return () => window.clearTimeout(timer);
   }, [timeLeft]);
 
-  const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
-  const ss = String(timeLeft % 60).padStart(2, "0");
-
-  const score = useMemo(
-    () =>
-      questions.reduce(
-        (acc, qq) => acc + ((locked[qq.id] ?? assessment.answersMap[qq.id - 1]) === qq.correct ? 1 : 0),
-        0
-      ),
-    [locked, assessment.answersMap, questions]
-  );
+  const score = useMemo(() => questions.reduce((total, question) => total + (examAnswers[question.id] === question.correct ? 1 : 0), 0), [examAnswers, questions]);
+  const answeredCount = questions.filter((question) => examAnswers[question.id]).length;
+  const label = isProfessionalBaseline ? "PROFESSIONAL CLINICAL BASELINE — PROTOTYPE" : isProfessionalPost ? "PROFESSIONAL POST-TEST" : isFinal ? "FINAL COMPREHENSIVE CHALLENGE" : examMode === "pre" ? "STUDENT PRE-TEST DIAGNOSTIC BASELINE" : "STUDENT POST-TEST EVALUATION";
+  const title = isProfessionalBaseline ? "6-question clinical baseline" : `${questions.length} Soal Vignette Klinis Terintegrasi`;
 
   function selectOption(key: string) {
-    if (lockedAnswer) return;
-    answerQuestion(q.id - 1, key);
-    setLocked((l) => ({ ...l, [q.id]: key }));
+    if (selected) return;
+    answerQuestion(q.id, key);
     if (!isFinal) setShowRationale(q.id);
   }
 
-  function handleFinish() {
-    const final = questions.reduce((acc, qq) => acc + ((locked[qq.id] ?? assessment.answersMap[qq.id - 1]) === qq.correct ? 1 : 0), 0);
-    finishExam(final);
-  }
-
-  return (
-    <div className="anim-in" style={{ maxWidth: 1080, margin: "0 auto" }}>
-      {/* ---------- Header timer ---------- */}
-      <div className="card" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 20, padding: "16px 24px" }}>
-        <div style={{ flex: 1 }}>
-          <div className="label">{isFinal ? "FINAL COMPREHENSIVE CHALLENGE — ICU SEPSIS" : examMode === "pre" ? "PRE-TEST DIAGNOSTIC BASELINE" : "POST-TEST EVALUATION"}</div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>
-            {isFinal ? "Kasus Sepsis Nosokomial — Tanpa Hint" : "10 Soal Vignette Klinis Terintegrasi"}
-          </div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div
-            className="mono"
-            style={{
-              fontSize: 30,
-              fontWeight: 700,
-              color: timeLeft < 300 ? "var(--danger)" : "var(--amber)",
-              animation: timeLeft < 300 ? "pulseGlow 1.2s infinite" : undefined,
-              borderRadius: 8,
-              padding: "0 8px",
-            }}
-          >
-            {mm}:{ss}
-          </div>
-          <div className="label" style={{ fontSize: 9 }}>SESSION LOCK</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div className="mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--primary)" }}>
-            {Object.keys(locked).length}/{questions.length}
-          </div>
-          <div className="label" style={{ fontSize: 9 }}>ANSWERED</div>
-        </div>
-      </div>
-
-      {/* ---------- Segmented progress ---------- */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
-        {questions.map((qq, i) => {
-          const a = locked[qq.id];
-          const isCurrent = i === examIndex;
-          return (
-            <button
-              key={qq.id}
-              onClick={() => setExamIndex(i)}
-              style={{
-                flex: 1,
-                height: 26,
-                borderRadius: 6,
-                border: `1px solid ${isCurrent ? "var(--primary)" : "var(--surface-highest)"}`,
-                background: a
-                  ? a === qq.correct
-                    ? "var(--secondary-container)"
-                    : "var(--red)"
-                  : isCurrent
-                    ? "var(--primary-container)"
-                    : "var(--surface-low)",
-                color: a || isCurrent ? "#fff" : "var(--text-muted)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: "pointer",
-                transition: "var(--transition)",
-              }}
-            >
-              {i + 1}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ---------- Question card ---------- */}
-      <div className="card anim-in" key={q.id}>
-        <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-          <span className="tag tag-cyan">{q.domain}</span>
-          <span className="tag tag-gray">SOAL {examIndex + 1} / {questions.length}</span>
-        </div>
-
-        <div
-          style={{
-            background: "var(--surface-low)",
-            borderLeft: "3px solid var(--primary-dim)",
-            borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-            padding: "14px 18px",
-            fontSize: 14.5,
-            color: "var(--text-secondary)",
-            marginBottom: 16,
-            lineHeight: 1.7,
-          }}
-        >
-          🩺 <strong style={{ color: "var(--text-primary)" }}>Vignette:</strong> {q.vignette}
-        </div>
-
-        <h3 style={{ fontSize: 18, marginBottom: 18 }}>{q.question}</h3>
-
-        <div style={{ display: "grid", gap: 10 }}>
-          {q.options.map((opt) => {
-            const selected = lockedAnswer === opt.key;
-            const isCorrect = lockedAnswer && opt.key === q.correct;
-            const isWrongPick = selected && opt.key !== q.correct;
-            return (
-              <button
-                key={opt.key}
-                onClick={() => selectOption(opt.key)}
-                disabled={!!lockedAnswer}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 14,
-                  padding: "13px 16px",
-                  borderRadius: "var(--radius-sm)",
-                  border: `1px solid ${
-                    isCorrect ? "var(--secondary)" : isWrongPick ? "var(--red)" : selected ? "var(--primary)" : "var(--surface-highest)"
-                  }`,
-                  background: isCorrect ? "var(--secondary-dim)" : isWrongPick ? "var(--red-dim)" : "var(--surface-low)",
-                  color: "var(--text-primary)",
-                  cursor: lockedAnswer ? "default" : "pointer",
-                  textAlign: "left",
-                  fontSize: 14,
-                  transition: "var(--transition)",
-                }}
-              >
-                <span
-                  className="mono"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    flexShrink: 0,
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: 6,
-                    background: isCorrect ? "var(--secondary-container)" : isWrongPick ? "var(--red)" : "var(--surface-high)",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  {opt.key}
-                </span>
-                <span style={{ paddingTop: 3 }}>{opt.text}</span>
-                {isCorrect && <span style={{ marginLeft: "auto", color: "var(--secondary)" }}>✓</span>}
-                {isWrongPick && <span style={{ marginLeft: "auto", color: "var(--danger)" }}>✗</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ---------- Rationale drawer ---------- */}
-        {showRationale === q.id && !isFinal && (
-          <div
-            className="anim-in"
-            style={{
-              marginTop: 16,
-              padding: "14px 18px",
-              borderRadius: "var(--radius-sm)",
-              background: lockedAnswer === q.correct ? "var(--secondary-dim)" : "var(--amber-dim)",
-              border: `1px solid ${lockedAnswer === q.correct ? "var(--secondary)" : "var(--amber)"}`,
-              fontSize: 13.5,
-              lineHeight: 1.7,
-            }}
-          >
-            <strong style={{ color: lockedAnswer === q.correct ? "var(--secondary)" : "var(--amber)" }}>
-              {lockedAnswer === q.correct ? "✓ BENAR — " : "✗ KURANG TEPAT — "}Rasional Klinis:
-            </strong>{" "}
-            {q.rationale}
-          </div>
-        )}
-        {isFinal && lockedAnswer && (
-          <div className="mono" style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>
-            Jawaban terkunci. Hint dinonaktifkan pada mode ujian mandiri.
-          </div>
-        )}
-
-        {/* ---------- Nav buttons ---------- */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
-          <button className="btn btn-ghost" disabled={examIndex === 0} onClick={() => setExamIndex(examIndex - 1)}>
-            ← Sebelumnya
-          </button>
-          {examIndex < questions.length - 1 ? (
-            <button className="btn btn-primary" onClick={() => setExamIndex(examIndex + 1)}>
-              Berikutnya →
-            </button>
-          ) : (
-            <button
-              className="btn btn-secondary"
-              disabled={Object.keys(locked).length < questions.length}
-              onClick={handleFinish}
-              title={Object.keys(locked).length < questions.length ? "Jawab semua soal dulu" : ""}
-            >
-              Selesai &amp; Kunci Jawaban (skor sementara: {score})
-            </button>
-          )}
-        </div>
-      </div>
-
-      {examMode === "pre" && (
-        <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => navigate("dashboard")}>
-          Lewati pre-test (demo) →
-        </button>
-      )}
-    </div>
-  );
+  return <div className="anim-in" style={{ maxWidth: 1080, margin: "0 auto" }}>
+    <div className="card" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 20, padding: "16px 24px" }}><div style={{ flex: 1 }}><div className="label">{label}</div><div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{title}</div>{isProfessionalBaseline && <p style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 5 }}>Completion-based: answer all six questions. Score is recorded but does not block completion.</p>}</div><div className="mono" style={{ fontSize: 28, color: timeLeft < 300 ? "var(--danger)" : "var(--amber)" }}>{String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}</div></div>
+    <div className="card card-low" style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", gap: 10 }}><span className="mono">QUESTION {examIndex + 1}/{questions.length}</span><span className="mono">ANSWERED {answeredCount}/{questions.length}</span></div>
+    <div className="card anim-in" key={q.id}><span className="tag tag-cyan">{q.domain}</span><p style={{ marginTop: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>{q.vignette}</p><h3 style={{ margin: "18px 0 14px", fontSize: 18 }}>{q.question}</h3><div style={{ display: "grid", gap: 9 }}>{q.options.map((option) => { const picked = selected === option.key; const revealed = !!selected; return <button key={option.key} className="btn btn-ghost" onClick={() => selectOption(option.key)} disabled={!!selected} style={{ justifyContent: "flex-start", textAlign: "left", padding: "13px 15px", background: picked ? (option.key === q.correct ? "var(--secondary-dim)" : "var(--red-dim)") : revealed && option.key === q.correct ? "var(--secondary-dim)" : undefined, borderColor: revealed && option.key === q.correct ? "var(--secondary)" : undefined }}><span className="mono" style={{ width: 22 }}>{option.key}</span>{option.text}</button>; })}</div>{showRationale === q.id && <div className="card card-low anim-in" style={{ marginTop: 16, borderColor: selected === q.correct ? "var(--secondary)" : "var(--amber)", fontSize: 13, lineHeight: 1.65 }}><strong>{selected === q.correct ? "Correct." : "Review."}</strong> {q.rationale}</div>}<div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}><button className="btn btn-ghost" disabled={examIndex === 0} onClick={() => setExamIndex(examIndex - 1)}>← Sebelumnya</button>{examIndex < questions.length - 1 ? <button className="btn btn-primary" onClick={() => setExamIndex(examIndex + 1)}>Berikutnya →</button> : <button className="btn btn-secondary" disabled={answeredCount < questions.length} onClick={() => finishExam(score)}>Selesai & Kunci Jawaban ({score}/{questions.length})</button>}</div></div>
+    {examMode === "pre" && user.onboardingIntent === "student" && <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => navigate("student-dashboard")}>Lewati pre-test (demo) →</button>}
+  </div>;
 }
