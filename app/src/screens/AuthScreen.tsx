@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PERSONAS } from "../data/personas";
 import { useStore } from "../store";
 import type { Experience } from "../types";
 
 export default function AuthScreen() {
-  const { registerStudent, startProfessionalRegistration, quickDemoStudent, quickDemoProfessional } = useStore();
+  const { registerStudent, startProfessionalRegistration, hydrateFromBackend } = useStore();
   const [stage, setStage] = useState<"track" | "account">("track");
   const [intent, setIntent] = useState<Experience>("student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const valid = name.trim().length >= 2 && /^\S+@\S+\.\S+$/.test(email.trim());
+
+  useEffect(() => { void hydrateFromBackend(); }, [hydrateFromBackend]);
 
   function selectTrack(track: Experience) {
     setIntent(track);
@@ -28,19 +30,19 @@ export default function AuthScreen() {
       <div style={{ padding: "64px 56px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div className="tag tag-cyan" style={{ alignSelf: "flex-start", marginBottom: 22 }}>BIOLAB ACCESS TERMINAL v3.0</div>
         <h1 style={{ fontSize: 52, fontWeight: 700, lineHeight: 1.06 }}>FUNK <span style={{ color: "var(--primary)" }}>EDU</span></h1>
-        <p style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--text-secondary)", marginTop: 14, maxWidth: 520 }}>One application. Separate Student foundations and verified Professional clinical progression.</p>
+        <p style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--text-secondary)", marginTop: 14, maxWidth: 520 }}>Separate Student foundations and verified Professional clinical progression.</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 36, maxWidth: 520 }}>
-          {[{ label: "Student Track", value: "6 fundamentals missions" }, { label: "Professional Track", value: "Verification + clinical baseline" }, { label: "Progress", value: "Foundations carried forward" }, { label: "Credential", value: "Prototype educational only" }].map((item) => (
+          {[{ label: "Student Track", value: "6 fundamentals missions" }, { label: "Professional Track", value: "Verification + clinical baseline" }, { label: "Progress", value: "Foundations carried forward" }, { label: "Credential", value: "Educational only" }].map((item) => (
             <div className="card card-low" key={item.label} style={{ padding: 14 }}><div className="label">{item.label}</div><div style={{ fontSize: 13, marginTop: 4 }}>{item.value}</div></div>
           ))}
         </div>
-        <div className="mono" style={{ marginTop: 40, fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.12em" }}>MEDICAL CONTENT AND VERIFICATION DATA ARE PROTOTYPE-ONLY</div>
+        <div className="mono" style={{ marginTop: 40, fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.12em" }}>MEDICAL CONTENT AND VERIFICATION DATA ARE EDUCATIONAL ONLY</div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
         <div className="card anim-in" style={{ width: "100%", maxWidth: 480, padding: 32 }}>
           <h2 style={{ fontSize: 24, marginBottom: 4 }}>{stage === "track" ? "Choose your track" : `${intent === "student" ? PERSONAS.student.label : "Professional"} account`}</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>{stage === "track" ? "Professional access is granted only after successful prototype verification." : intent === "student" ? "Create a Student account and continue to the fundamentals pre-test." : "Create the account first, then submit a professional claim for verification."}</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>{stage === "track" ? "Professional access is granted only after successful verification." : intent === "student" ? "Create a Student account and continue to the fundamentals pre-test." : "Create the account first, then submit a professional claim for verification."}</p>
 
           {stage === "track" ? (
             <div style={{ display: "grid", gap: 12 }}>
@@ -59,13 +61,7 @@ export default function AuthScreen() {
               <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => setStage("track")}>← Change track</button>
             </>
           )}
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "18px 0" }}><div style={{ flex: 1, height: 1, background: "var(--surface-highest)" }} /><span className="label">prototype demo</span><div style={{ flex: 1, height: 1, background: "var(--surface-highest)" }} /></div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <button className="btn btn-ghost" onClick={quickDemoStudent}>Student demo</button>
-            <button className="btn btn-secondary" onClick={quickDemoProfessional}>Verified Professional demo</button>
-          </div>
-          <div className="mono" style={{ marginTop: 18, fontSize: 10, color: "var(--amber)", textAlign: "center" }}>Simulasi verifikasi — bukan validasi KKI/SATUSEHAT</div>
+          <div className="mono" style={{ marginTop: 18, fontSize: 10, color: "var(--amber)", textAlign: "center" }}>Verification is server-validated — not a KKI/SATUSEHAT integration</div>
         </div>
       </div>
     </div>

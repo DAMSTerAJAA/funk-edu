@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { DEFAULT_SIM } from "./data/drugs";
 import { resolveRoute, type Route, type RouteState } from "./routes";
 import { professionalVerificationService } from "./services/professionalVerification";
+import { fetchMe, registerAccount, saveProgress, clearSession } from "./services/backend";
 import type {
   AssessmentState,
   ProfessionalAssessmentState,
@@ -31,8 +32,7 @@ export interface Store {
   setMission: (mission: number) => void;
   registerStudent: (account: { name: string; email: string }) => void;
   startProfessionalRegistration: (account: { name: string; email: string }) => void;
-  quickDemoStudent: () => void;
-  quickDemoProfessional: () => void;
+  hydrateFromBackend: () => Promise<void>;
   beginProfessionalUpgrade: () => void;
   continueAsStudent: () => void;
   submitProfessionalVerification: (request: ProfessionalVerificationRequest) => Promise<void>;
@@ -107,6 +107,20 @@ export const emptyProfessionalAssessment: ProfessionalAssessmentState = {
   professionalCertificateUnlocked: false,
 };
 
+function persistProgress(state: Store) {
+  saveProgress({
+    experience: state.user.experience,
+    onboardingIntent: state.user.onboardingIntent,
+    xp: state.user.xp,
+    coins: state.user.coins,
+    streakDays: state.user.streakDays,
+    rank: state.user.rank,
+    studentAssessment: state.studentAssessment,
+    professionalAssessment: state.professionalAssessment,
+    professionalVerification: state.user.professionalVerification,
+  }).catch((error: unknown) => console.error("Progress save failed", error));
+}
+
 function routeState(state: Store): RouteState {
   return {
     name: state.user.name,
@@ -135,57 +149,47 @@ export const useStore = create<Store>((set, get) => ({
   },
   setMission: (activeMission) => set({ activeMission }),
 
-  registerStudent: ({ name, email }) => set({
-    user: { ...initialUser, name, email, experience: "student", onboardingIntent: "student", xp: 120, coins: 40, rank: rankFor(120) },
-    route: "pretest",
-    examMode: "pre",
-    examIndex: 0,
-    examAnswers: {},
-  }),
+  registerStudent: ({ name, email }) => {
+    set({
+      user: { ...initialUser, name, email, experience: "student", onboardingIntent: "student", xp: 0, coins: 0, rank: rankFor(0) },
+      route: "pretest",
+      examMode: "pre",
+      examIndex: 0,
+      examAnswers: {},
+    });
+    registerAccount(name, email, "student").catch((error: unknown) => console.error("Backend registration failed", error));
+  },
 
-  startProfessionalRegistration: ({ name, email }) => set({
-    user: { ...initialUser, name, email, experience: "student", onboardingIntent: "professional", xp: 120, coins: 40, rank: rankFor(120) },
-    route: "professional-verification",
-  }),
+  startProfessionalRegistration: ({ name, email }) => {
+    set({
+      user: { ...initialUser, name, email, experience: "student", onboardingIntent: "professional", xp: 0, coins: 0, rank: rankFor(0) },
+      route: "professional-verification",
+    });
+    registerAccount(name, email, "professional").catch((error: unknown) => console.error("Backend registration failed", error));
+  },
 
-  quickDemoStudent: () => set({
-    user: { ...initialUser, name: "Alya Pratama", email: "alya@student.demo", xp: 120, coins: 40, streakDays: 7, rank: rankFor(120) },
-    route: "pretest",
-    examMode: "pre",
-  }),
-
-  quickDemoProfessional: () => set({
-    user: {
-      ...initialUser,
-      name: "dr. Althea Vance",
-      email: "althea@professional.demo",
-      experience: "professional",
-      onboardingIntent: "professional",
-      professionalVerification: {
-        status: "verified",
-        requestId: "prototype-demo-verified-resident",
-        request: {
-          legalName: "dr. Althea Vance",
-          professionalRole: "residen",
-          registrationNumber: "DEMO-VERIFIED-RESIDENT",
-          institution: "RS Pendidikan Demo",
-          specialtyOrProgram: "Penyakit Dalam",
-          consent: true,
-        },
-        verifiedRole: "residen",
-        verifiedName: "dr. Althea Vance",
-        rejectionReason: null,
-        lastCheckedAt: new Date().toISOString(),
+  hydrateFromBackend: async () => {
+    const result = await fetchMe();
+    if (!result) return;
+    const account = result.account;
+    set({
+      user: {
+        name: account.name,
+        email: account.email,
+        experience: account.experience,
+        onboardingIntent: account.onboardingIntent,
+        professionalVerification: account.professionalVerification,
+        xp: account.xp,
+        coins: account.coins,
+        streakDays: account.streakDays,
+        rank: account.rank,
       },
-      xp: 120,
-      coins: 40,
-      streakDays: 7,
-      rank: rankFor(120),
-    },
-    professionalAssessment: { ...emptyProfessionalAssessment },
-    route: "professional-baseline",
-    examMode: "professional-baseline",
-  }),
+      studentAssessment: account.studentAssessment,
+      professionalAssessment: account.professionalAssessment,
+      route: account.experience === "professional" && !account.professionalAssessment.baselineDone ? "professional-baseline" : account.experience === "professional" ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
+      examMode: account.experience === "professional" ? "professional-baseline" : "pre",
+    });
+  },
 
   beginProfessionalUpgrade: () => set({ route: "professional-verification" }),
   continueAsStudent: () => {
@@ -195,6 +199,7 @@ export const useStore = create<Store>((set, get) => ({
       route: state.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
       examMode: state.studentAssessment.pretestDone ? state.examMode : "pre",
     });
+    persistProgress(get());
   },
 
   submitProfessionalVerification: async (request) => {
@@ -235,6 +240,7 @@ export const useStore = create<Store>((set, get) => ({
           examIndex: 0,
           examAnswers: {},
         });
+        persistProgress(get());
         return;
       }
       set({
@@ -252,6 +258,7 @@ export const useStore = create<Store>((set, get) => ({
           },
         },
       });
+      persistProgress(get());
     } catch {
       const current = get();
       set({
@@ -300,6 +307,7 @@ export const useStore = create<Store>((set, get) => ({
           examIndex: 0,
           examAnswers: {},
         });
+        persistProgress(get());
         return;
       }
       set({
@@ -313,6 +321,7 @@ export const useStore = create<Store>((set, get) => ({
           },
         },
       });
+      persistProgress(get());
     } catch {
       const current = get();
       set({ user: { ...current.user, professionalVerification: { ...verification, status: "unavailable", lastCheckedAt: new Date().toISOString() } } });
@@ -333,6 +342,7 @@ export const useStore = create<Store>((set, get) => ({
         route: "professional-dashboard",
         examAnswers: {},
       });
+      persistProgress(get());
       return;
     }
     if (state.examMode === "professional-post") {
@@ -348,6 +358,7 @@ export const useStore = create<Store>((set, get) => ({
         route: passed ? "certificate" : "professional-dashboard",
         examAnswers: {},
       });
+      persistProgress(get());
       return;
     }
     if (state.examMode === "pre") {
@@ -357,6 +368,7 @@ export const useStore = create<Store>((set, get) => ({
         route: "student-dashboard",
         examAnswers: {},
       });
+      persistProgress(get());
       return;
     }
     const passed = score >= 8;
@@ -372,6 +384,7 @@ export const useStore = create<Store>((set, get) => ({
       route: passed ? "certificate" : "student-dashboard",
       examAnswers: {},
     });
+    persistProgress(get());
   },
 
   completeMission: (mission, xp) => {
@@ -388,6 +401,7 @@ export const useStore = create<Store>((set, get) => ({
       studentAssessment: { ...state.studentAssessment, completedMissions, unlockedMissions, earnedBadges },
       user: { ...state.user, xp: newXP, coins: state.user.coins + Math.round(xp / 5), rank: rankFor(newXP) },
     });
+    persistProgress(get());
   },
 
   completeSharedModule: (module, target) => {
@@ -400,6 +414,7 @@ export const useStore = create<Store>((set, get) => ({
     }
     const field = module === "workbench" ? "workbenchDone" : module === "clinical-room" ? "clinicalRoomDone" : "prescriptionAuditDone";
     set({ professionalAssessment: { ...state.professionalAssessment, [field]: true } });
+    persistProgress(get());
   },
 
   addXP: (xp) => {
@@ -408,17 +423,20 @@ export const useStore = create<Store>((set, get) => ({
     set({ user: { ...state.user, xp: newXP, coins: state.user.coins + Math.max(0, Math.round(xp / 10)), rank: rankFor(newXP) } });
   },
 
-  reset: () => set({
-    route: "auth",
-    activeMission: 1,
-    user: initialUser,
-    simulation: { ...DEFAULT_SIM },
-    studentAssessment: initialStudentAssessment,
-    professionalAssessment: emptyProfessionalAssessment,
-    examIndex: 0,
-    examMode: "pre",
-    examAnswers: {},
-  }),
+  reset: () => {
+    clearSession();
+    set({
+      route: "auth",
+      activeMission: 1,
+      user: initialUser,
+      simulation: { ...DEFAULT_SIM },
+      studentAssessment: initialStudentAssessment,
+      professionalAssessment: emptyProfessionalAssessment,
+      examIndex: 0,
+      examMode: "pre",
+      examAnswers: {},
+    });
+  },
 }));
 
 export type { Route } from "./routes";
