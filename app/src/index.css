@@ -1,0 +1,185 @@
+/* ============================================================
+   FUNK EDU — Cyber-Clinical Design Tokens & Global Styles
+   ============================================================ */
+:root {
+  /* Surfaces */
+  --bg-master: #081229;
+  --surface-lowest: #040d24;
+  --surface-low: #111b32;
+  --surface-container: #151f36;
+  --surface-high: #202941;
+  --surface-highest: #2b344d;
+
+  /* Accents */
+  --primary: #00f0ff;
+  --primary-dim: #00dbe9;
+  --primary-container: rgba(0, 240, 255, 0.12);
+  --secondary: #4edea3;
+  --secondary-container: #00a572;
+  --secondary-dim: rgba(78, 222, 163, 0.12);
+  --amber: #fbbf24;
+  --amber-dim: rgba(251, 191, 36, 0.12);
+  --danger: #ffb4ab;
+  --red: #ef4444;
+  --red-dim: rgba(239, 68, 68, 0.12);
+
+  /* Text */
+  --text-primary: #e2e8f5;
+  --text-secondary: #93a0bd;
+  --text-muted: #5b6a8c;
+
+  /* Typography */
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+
+  /* Misc */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --glow-cyan: 0 0 18px rgba(0, 240, 255, 0.35);
+  --glow-mint: 0 0 18px rgba(78, 222, 163, 0.3);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg-master);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(0, 240, 255, 0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(78, 222, 163, 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: 0.01em; }
+code, .mono { font-family: var(--font-mono); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--surface-lowest); }
+::-webkit-scrollbar-thumb { background: var(--surface-highest); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4562; }
+
+/* ---------- Generic UI primitives ---------- */
+.card {
+  background: var(--surface-container);
+  border: 1px solid var(--surface-highest);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.card-low { background: var(--surface-low); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-primary);
+  background: var(--surface-high);
+}
+.btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+  color: #04222a;
+  box-shadow: var(--glow-cyan);
+}
+.btn-secondary { background: var(--secondary-container); color: #d9fff0; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-ghost { background: transparent; border-color: var(--surface-highest); color: var(--text-secondary); }
+.btn-ghost:hover { border-color: var(--primary-dim); color: var(--primary); }
+
+.pill {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-highest);
+  background: var(--surface-low);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.pill:hover { border-color: var(--primary-dim); color: var(--primary); }
+.pill.active {
+  background: var(--primary-container);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: var(--glow-cyan);
+}
+.pill.active-mint { background: var(--secondary-dim); border-color: var(--secondary); color: var(--secondary); box-shadow: var(--glow-mint); }
+.pill.active-amber { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+.pill.active-red { background: var(--red-dim); border-color: var(--red); color: var(--danger); }
+
+.tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+.tag-cyan { background: var(--primary-container); color: var(--primary); }
+.tag-mint { background: var(--secondary-dim); color: var(--secondary); }
+.tag-amber { background: var(--amber-dim); color: var(--amber); }
+.tag-red { background: var(--red-dim); color: var(--danger); }
+.tag-gray { background: var(--surface-highest); color: var(--text-secondary); }
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stat-value { font-family: var(--font-mono); font-weight: 700; }
+
+.progress-track {
+  height: 8px;
+  background: var(--surface-lowest);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary-dim), var(--primary));
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+.progress-fill.mint { background: linear-gradient(90deg, var(--secondary-container), var(--secondary)); box-shadow: 0 0 10px rgba(78,222,163,0.5); }
+.progress-fill.amber { background: linear-gradient(90deg, #b45309, var(--amber)); box-shadow: 0 0 10px rgba(251,191,36,0.5); }
+.progress-fill.red { background: linear-gradient(90deg, #991b1b, var(--red)); box-shadow: 0 0 10px rgba(239,68,68,0.5); }
+
+.grid { display: grid; gap: 16px; }
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0, 240, 255, 0.3); }
+  50% { box-shadow: 0 0 22px rgba(0, 240, 255, 0.65); }
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim-in { animation: fadeSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both; }
