@@ -43,7 +43,14 @@ export function simulate(cfg: SimulationConfig): {
   points: PlasmaPoint[];
   metrics: SimulationMetrics;
 } {
-  const drug = DRUGS[cfg.activeDrug];
+  const drug = DRUGS[cfg.activeDrug] ?? DRUGS[Object.keys(DRUGS)[0]];
+  if (!drug) {
+    // Drug reference unavailable — return an inert, non-crashing result
+    return {
+      points: [],
+      metrics: { cMax: 0, cTrough: 0, auc24: 0, fTOverMic: 0, cMaxOverMic: 0, aucOverMic: 0, isOptimal: false, status: "failure", colonyCountLive: 0, resistantMutantCount: 0, microbiomePreservation: 0 },
+    };
+  }
   const ke = keFor(drug, cfg.crCl);
   const vd = drug.vdPerKg * cfg.patientWeightKg;
   const doseMg = cfg.doseGrams * 1000;

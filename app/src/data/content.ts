@@ -347,6 +347,11 @@ function setContentStatus(next: ContentStatus) {
   contentListeners.forEach((listener) => listener());
 }
 
+/** Notify content subscribers (used by sibling registries, e.g. the drug reference). */
+export function notifyContentChange() {
+  contentListeners.forEach((listener) => listener());
+}
+
 export const PRETEST_QUESTIONS: Question[] = [...LOCAL_PRETEST_QUESTIONS];
 export const POSTTEST_QUESTIONS: Question[] = PRETEST_QUESTIONS.map((q, i) => ({
   ...q,

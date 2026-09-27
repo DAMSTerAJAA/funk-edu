@@ -3,7 +3,8 @@
 // ============================================================
 import { useMemo, useState } from "react";
 import { useStore } from "../store";
-import { DRUGS } from "../data/drugs";
+import { DRUGS, initDrugs } from "../data/drugs";
+import { useContentStatus } from "../data/content";
 import { simulate } from "../data/pkEngine";
 import type { DrugId } from "../types";
 import PlasmaCurve from "../components/PlasmaCurve";
@@ -12,6 +13,7 @@ import PetriDish from "../components/PetriDish";
 const PETRI_TIMES = [0, 12, 24, 36, 48];
 
 export default function WorkbenchScreen() {
+  useContentStatus(); // re-render when the drug reference arrives from the backend
   const { simulation, updateSim, completeMission, completeSharedModule, addXP, studentAssessment, user } = useStore();
   const target = user.experience === "professional" ? "professional" : "student";
   const assessment = studentAssessment;
@@ -19,6 +21,20 @@ export default function WorkbenchScreen() {
   const [challengeDone, setChallengeDone] = useState(target === "professional" ? useStore.getState().professionalAssessment.workbenchDone : assessment.completedMissions.includes(4));
 
   const { points, metrics } = useMemo(() => simulate(simulation), [simulation]);
+
+  // Defensive: drug reference unavailable — never crash to a blank screen
+  if (!drug) {
+    return (
+      <div className="anim-in" style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div className="card" style={{ textAlign: "center", padding: 40 }}>
+          <span className="tag tag-amber">DATA OBAT TIDAK TERSEDIA</span>
+          <h2 style={{ marginTop: 14 }}>Referensi obat gagal dimuat</h2>
+          <p style={{ color: "var(--text-muted)", marginTop: 8 }}>Muat ulang halaman untuk mencoba lagi.</p>
+          <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => { void initDrugs(); window.location.reload(); }}>Muat ulang →</button>
+        </div>
+      </div>
+    );
+  }
 
   const statusColor = metrics.status === "optimal" ? "var(--secondary)" : metrics.status === "suboptimal" ? "var(--amber)" : "var(--danger)";
   const statusLabel =
