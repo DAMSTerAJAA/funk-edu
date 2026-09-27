@@ -12,7 +12,6 @@ export default function ExamScreen() {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [showRationale, setShowRationale] = useState<number | null>(null);
   const q = questions[examIndex];
-  const selected = examAnswers[q.id];
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -24,6 +23,22 @@ export default function ExamScreen() {
   const answeredCount = questions.filter((question) => examAnswers[question.id]).length;
   const label = isProfessionalBaseline ? "PROFESSIONAL CLINICAL BASELINE — PROTOTYPE" : isProfessionalPost ? "PROFESSIONAL POST-TEST" : isFinal ? "FINAL COMPREHENSIVE CHALLENGE" : examMode === "pre" ? "STUDENT PRE-TEST DIAGNOSTIC BASELINE" : "STUDENT POST-TEST EVALUATION";
   const title = isProfessionalBaseline ? "6-question clinical baseline" : `${questions.length} Soal Vignette Klinis Terintegrasi`;
+
+  // Defensive: content failed to load or index out of range — never crash to a blank screen
+  if (!q) {
+    const fallback = isProfessionalBaseline ? "professional-dashboard" : "student-dashboard";
+    return (
+      <div className="anim-in" style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div className="card" style={{ textAlign: "center", padding: 40 }}>
+          <span className="tag tag-amber">KONTEN TIDAK TERSEDIA</span>
+          <h2 style={{ marginTop: 14 }}>Soal tidak dapat dimuat</h2>
+          <p style={{ color: "var(--text-muted)", marginTop: 8 }}>Bank soal kosong atau indeks di luar jangkauan. Silakan kembali ke dashboard.</p>
+          <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => navigate(fallback)}>← Kembali ke Dashboard</button>
+        </div>
+      </div>
+    );
+  }
+  const selected = examAnswers[q.id];
 
   function selectOption(key: string) {
     if (selected) return;

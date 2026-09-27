@@ -27,11 +27,15 @@ export interface Store {
   examIndex: number;
   examMode: ExamMode;
   examAnswers: Record<number, string>;
+  /** false while a session-restore request is in flight — guards against racing a fresh local registration */
+  backendReady: boolean;
+  /** true once the account exists on the backend; enables progress persistence */
+  backendSynced: boolean;
 
   navigate: (route: Route) => void;
   setMission: (mission: number) => void;
-  registerStudent: (account: { name: string; email: string }) => void;
-  startProfessionalRegistration: (account: { name: string; email: string }) => void;
+  registerStudent: (account: { name: string; email: string }) => Promise<void>;
+  startProfessionalRegistration: (account: { name: string; email: string }) => Promise<void>;
   hydrateFromBackend: () => Promise<void>;
   beginProfessionalUpgrade: () => void;
   continueAsStudent: () => void;
@@ -108,6 +112,7 @@ export const emptyProfessionalAssessment: ProfessionalAssessmentState = {
 };
 
 function persistProgress(state: Store) {
+  if (!state.backendSynced) return;
   saveProgress({
     experience: state.user.experience,
     onboardingIntent: state.user.onboardingIntent,
@@ -142,6 +147,8 @@ export const useStore = create<Store>((set, get) => ({
   examIndex: 0,
   examMode: "pre",
   examAnswers: {},
+  backendReady: true,
+  backendSynced: false,
 
   navigate: (requested) => {
     const state = get();
@@ -149,46 +156,86 @@ export const useStore = create<Store>((set, get) => ({
   },
   setMission: (activeMission) => set({ activeMission }),
 
-  registerStudent: ({ name, email }) => {
+  registerStudent: async ({ name, email }) => {
     set({
       user: { ...initialUser, name, email, experience: "student", onboardingIntent: "student", xp: 0, coins: 0, rank: rankFor(0) },
       route: "pretest",
       examMode: "pre",
       examIndex: 0,
       examAnswers: {},
+      backendSynced: false,
     });
-    registerAccount(name, email, "student").catch((error: unknown) => console.error("Backend registration failed", error));
+    try {
+      const { account } = await registerAccount(name, email, "student");
+      const current = get();
+      // A session restore may have finished while registration was in flight — never clobber it
+      if (current.user.email !== email) return;
+      set({
+        user: {
+          ...current.user,
+          experience: account.experience,
+          onboardingIntent: account.onboardingIntent,
+          professionalVerification: account.professionalVerification,
+        },
+        backendSynced: true,
+      });
+    } catch (error) {
+      // Backend unreachable (e.g. protected deployment) — keep local session usable
+      console.error("Backend registration failed", error);
+    }
   },
 
-  startProfessionalRegistration: ({ name, email }) => {
+  startProfessionalRegistration: async ({ name, email }) => {
     set({
       user: { ...initialUser, name, email, experience: "student", onboardingIntent: "professional", xp: 0, coins: 0, rank: rankFor(0) },
       route: "professional-verification",
+      backendSynced: false,
     });
-    registerAccount(name, email, "professional").catch((error: unknown) => console.error("Backend registration failed", error));
+    try {
+      const { account } = await registerAccount(name, email, "professional");
+      const current = get();
+      if (current.user.email !== email) return;
+      set({
+        user: {
+          ...current.user,
+          experience: account.experience,
+          onboardingIntent: account.onboardingIntent,
+          professionalVerification: account.professionalVerification,
+        },
+        backendSynced: true,
+      });
+    } catch (error) {
+      console.error("Backend registration failed", error);
+    }
   },
 
   hydrateFromBackend: async () => {
-    const result = await fetchMe();
-    if (!result) return;
-    const account = result.account;
-    set({
-      user: {
-        name: account.name,
-        email: account.email,
-        experience: account.experience,
-        onboardingIntent: account.onboardingIntent,
-        professionalVerification: account.professionalVerification,
-        xp: account.xp,
-        coins: account.coins,
-        streakDays: account.streakDays,
-        rank: account.rank,
-      },
-      studentAssessment: account.studentAssessment,
-      professionalAssessment: account.professionalAssessment,
-      route: account.experience === "professional" && !account.professionalAssessment.baselineDone ? "professional-baseline" : account.experience === "professional" ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
-      examMode: account.experience === "professional" ? "professional-baseline" : "pre",
-    });
+    set({ backendReady: false });
+    try {
+      const result = await fetchMe();
+      if (!result) return;
+      const account = result.account;
+      set({
+        user: {
+          name: account.name,
+          email: account.email,
+          experience: account.experience,
+          onboardingIntent: account.onboardingIntent,
+          professionalVerification: account.professionalVerification,
+          xp: account.xp,
+          coins: account.coins,
+          streakDays: account.streakDays,
+          rank: account.rank,
+        },
+        studentAssessment: account.studentAssessment,
+        professionalAssessment: account.professionalAssessment,
+        backendSynced: true,
+        route: account.experience === "professional" && !account.professionalAssessment.baselineDone ? "professional-baseline" : account.experience === "professional" ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
+        examMode: account.experience === "professional" ? "professional-baseline" : "pre",
+      });
+    } finally {
+      set({ backendReady: true });
+    }
   },
 
   beginProfessionalUpgrade: () => set({ route: "professional-verification" }),
@@ -435,6 +482,8 @@ export const useStore = create<Store>((set, get) => ({
       examIndex: 0,
       examMode: "pre",
       examAnswers: {},
+      backendReady: true,
+      backendSynced: false,
     });
   },
 }));

@@ -4,12 +4,14 @@ import { useStore } from "../store";
 import type { Experience } from "../types";
 
 export default function AuthScreen() {
-  const { registerStudent, startProfessionalRegistration, hydrateFromBackend } = useStore();
+  const { registerStudent, startProfessionalRegistration, hydrateFromBackend, backendReady } = useStore();
   const [stage, setStage] = useState<"track" | "account">("track");
   const [intent, setIntent] = useState<Experience>("student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const valid = name.trim().length >= 2 && /^\S+@\S+\.\S+$/.test(email.trim());
+  const canSubmit = valid && backendReady && !submitting;
 
   useEffect(() => { void hydrateFromBackend(); }, [hydrateFromBackend]);
 
@@ -18,11 +20,16 @@ export default function AuthScreen() {
     setStage("account");
   }
 
-  function submit() {
-    if (!valid) return;
-    const account = { name: name.trim(), email: email.trim() };
-    if (intent === "student") registerStudent(account);
-    else startProfessionalRegistration(account);
+  async function submit() {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      const account = { name: name.trim(), email: email.trim() };
+      if (intent === "student") await registerStudent(account);
+      else await startProfessionalRegistration(account);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -55,8 +62,8 @@ export default function AuthScreen() {
               <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nama sesuai identitas" style={inputStyle} />
               <label className="label" style={{ marginTop: 16 }}>Email</label>
               <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@institusi.ac.id" type="email" style={inputStyle} />
-              <button className="btn btn-primary" disabled={!valid} style={{ width: "100%", justifyContent: "center", marginTop: 24, padding: 13 }} onClick={submit}>
-                {intent === "student" ? "Create Student account →" : "Continue to verification →"}
+              <button className="btn btn-primary" disabled={!canSubmit} style={{ width: "100%", justifyContent: "center", marginTop: 24, padding: 13 }} onClick={() => void submit()}>
+                {submitting ? "Creating account…" : !backendReady ? "Checking session…" : intent === "student" ? "Create Student account →" : "Continue to verification →"}
               </button>
               <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => setStage("track")}>← Change track</button>
             </>
