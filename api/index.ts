@@ -60,7 +60,11 @@ export async function GET(req: Request) {
 
   const contentMatch = url.pathname.match(/\/content\/(\w+)$/);
   if (contentMatch) {
-    const result = await pool.query("select payload from funkedu_content where kind=$1 order by id", [contentMatch[1]]);
+    // Natural ordering: numeric ids sort numerically, others lexicographically
+    const result = await pool.query(
+      "select payload from funkedu_content where kind=$1 order by case when id ~ '^[0-9]+$' then 0 else 1 end, case when id ~ '^[0-9]+$' then id::int end, id",
+      [contentMatch[1]]
+    );
     return json({ items: result.rows.map((r: Record<string, unknown>) => r.payload) });
   }
 
