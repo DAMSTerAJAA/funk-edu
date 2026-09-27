@@ -3,7 +3,7 @@
 // ============================================================
 import { useState } from "react";
 import { useStore } from "../../store";
-import { AUDIT_CASES } from "../../data/content";
+import { AUDIT_CASES, useContentStatus } from "../../data/content";
 
 const FIVE_R = [
   { id: "patient", label: "Right Patient", desc: "Indikasi infeksi bakteri terkonfirmasi/dugaan kuat" },
@@ -14,6 +14,7 @@ const FIVE_R = [
 ];
 
 export default function Mission6() {
+  useContentStatus();
   const { completeMission, completeSharedModule, addXP, user } = useStore();
   const target = user.experience === "professional" ? "professional" : "student";
   const [checks, setChecks] = useState<string[]>([]);

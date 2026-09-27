@@ -3,9 +3,10 @@
 // ============================================================
 import { useState } from "react";
 import { useStore } from "../store";
-import { CAP_JOURNEY, ANTIBIOGRAM } from "../data/content";
+import { CAP_JOURNEY, ANTIBIOGRAM, useContentStatus } from "../data/content";
 
 export default function ClinicalRoomScreen() {
+  useContentStatus();
   const { addXP, completeSharedModule, navigate, user } = useStore();
   const target = user.experience === "professional" ? "professional" : "student";
   const [dayIdx, setDayIdx] = useState(0);

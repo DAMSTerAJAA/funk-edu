@@ -1,9 +1,11 @@
 // ============================================================
-// FUNK EDU — Dummy Assessment & Clinical Case Data
+// FUNK EDU — Content contracts; local fallback fixtures below.
+// Primary source is the backend content API (funkedu_content table);
+// these fixtures keep the app usable offline / before the DB is seeded.
 // ============================================================
 import type { Question } from "../types";
 
-export const PRETEST_QUESTIONS: Question[] = [
+const LOCAL_PRETEST_QUESTIONS: Question[] = [
   {
     id: 1,
     domain: "Diagnosis Infeksi",
@@ -146,16 +148,6 @@ export const PRETEST_QUESTIONS: Question[] = [
   },
 ];
 
-export const POSTTEST_QUESTIONS: Question[] = PRETEST_QUESTIONS.map((q, i) => ({
-  ...q,
-  id: i + 101,
-  vignette: "[Lanjutan] " + q.vignette,
-}));
-export const PROFESSIONAL_BASELINE_QUESTIONS: Question[] = [3, 4, 6, 7, 8, 10].map((sourceId, index) => ({
-  ...PRETEST_QUESTIONS.find((question) => question.id === sourceId)!,
-  id: 201 + index,
-}));
-
 // ---------- Clinical Decision Room: kasus CAP ----------
 export interface JourneyDay {
   day: number;
@@ -169,7 +161,7 @@ export interface JourneyDay {
   };
 }
 
-export const CAP_JOURNEY: JourneyDay[] = [
+const LOCAL_CAP_JOURNEY: JourneyDay[] = [
   {
     day: 0,
     label: "D0 IGD",
@@ -263,7 +255,7 @@ export const CAP_JOURNEY: JourneyDay[] = [
   },
 ];
 
-export const ANTIBIOGRAM = [
+const LOCAL_ANTIBIOGRAM = [
   { agent: "Penisilin G", mic: "0,06", sir: "S" },
   { agent: "Amoksisilin", mic: "0,12", sir: "S" },
   { agent: "Ampisilin-Sulbaktam", mic: "0,25", sir: "S" },
@@ -275,7 +267,15 @@ export const ANTIBIOGRAM = [
 ] as const;
 
 // ---------- Misi 6: audit resep ----------
-export const AUDIT_CASES = [
+export interface AuditCase {
+  id: string;
+  title: string;
+  prescription: string;
+  issues: string[];
+  verdict: string;
+  status: "watch" | "violation" | "correct";
+}
+const LOCAL_AUDIT_CASES: AuditCase[] = [
   {
     id: "A",
     title: "Resep A — Bangsal Penyakit Dalam",
@@ -303,7 +303,7 @@ export const AUDIT_CASES = [
 ];
 
 // ---------- Lencana & domain ----------
-export const BADGES = [
+const LOCAL_BADGES = [
   { id: "detective", name: "Infection Detective", desc: "Menguasai diagnosis infeksi bakteri vs viral" },
   { id: "target", name: "Target Hunter", desc: "Memetakan mekanisme aksi antimikroba" },
   { id: "spectrum", name: "Spectrum Strategist", desc: "Bijak memilih spektrum & AWaRe" },
@@ -317,3 +317,100 @@ export const DOMAINS = [
   "Spektrum & AWaRe",
   "Resistensi & Stewardship",
 ] as const;
+
+// ============================================================
+// Runtime content registry — served from the backend content
+// API (funkedu_content table), falling back to the local
+// fixtures above so the app never renders empty screens.
+// ============================================================
+import { fetchContent } from "../services/backend";
+import { useSyncExternalStore } from "react";
+
+export type ContentStatus = "local" | "loading" | "remote" | "error";
+
+let contentStatus: ContentStatus = "local";
+export function getContentStatus(): ContentStatus {
+  return contentStatus;
+}
+
+/** React hook: re-renders the component when remote content arrives. */
+export function useContentStatus(): ContentStatus {
+  return useSyncExternalStore(onContentChange, getContentStatus);
+}
+const contentListeners = new Set<() => void>();
+export function onContentChange(listener: () => void): () => void {
+  contentListeners.add(listener);
+  return () => contentListeners.delete(listener);
+}
+function setContentStatus(next: ContentStatus) {
+  contentStatus = next;
+  contentListeners.forEach((listener) => listener());
+}
+
+export const PRETEST_QUESTIONS: Question[] = [...LOCAL_PRETEST_QUESTIONS];
+export const POSTTEST_QUESTIONS: Question[] = PRETEST_QUESTIONS.map((q, i) => ({
+  ...q,
+  id: i + 101,
+  vignette: "[Lanjutan] " + q.vignette,
+}));
+export const PROFESSIONAL_BASELINE_QUESTIONS: Question[] = [3, 4, 6, 7, 8, 10].map((sourceId, index) => ({
+  ...PRETEST_QUESTIONS.find((question) => question.id === sourceId)!,
+  id: 201 + index,
+}));
+export const CAP_JOURNEY: JourneyDay[] = [...LOCAL_CAP_JOURNEY];
+export const ANTIBIOGRAM: readonly { agent: string; mic: string; sir: string }[] = [...LOCAL_ANTIBIOGRAM];
+export const AUDIT_CASES: AuditCase[] = [...LOCAL_AUDIT_CASES];
+export const BADGES: readonly { id: string; name: string; desc: string }[] = [...LOCAL_BADGES];
+
+function rebuildDerivedQuestions() {
+  POSTTEST_QUESTIONS.splice(0, POSTTEST_QUESTIONS.length, ...PRETEST_QUESTIONS.map((q, i) => ({
+    ...q,
+    id: i + 101,
+    vignette: "[Lanjutan] " + q.vignette,
+  })));
+  PROFESSIONAL_BASELINE_QUESTIONS.splice(0, PROFESSIONAL_BASELINE_QUESTIONS.length, ...[3, 4, 6, 7, 8, 10].map((sourceId, index) => ({
+    ...PRETEST_QUESTIONS.find((question) => question.id === sourceId)!,
+    id: 201 + index,
+  })));
+}
+
+function replaceArray<T>(target: T[], items: unknown): boolean {
+  if (!Array.isArray(items) || items.length === 0) return false;
+  target.splice(0, target.length, ...(items as T[]));
+  return true;
+}
+
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Load content from the backend content API (Neon funkedu_content).
+ * Idempotent. On any failure the local fixtures stay active.
+ */
+export function initContent(): Promise<void> {
+  if (initPromise) return initPromise;
+  setContentStatus("loading");
+  initPromise = (async () => {
+    const results = await Promise.allSettled([
+      fetchContent("pretest_questions"),
+      fetchContent("cap_journey"),
+      fetchContent("antibiogram"),
+      fetchContent("audit_cases"),
+      fetchContent("badges"),
+    ]);
+    const [pretest, capJourney, antibiogram, auditCases, badges] = results.map((r) => (r.status === "fulfilled" ? r.value : null));
+    let any = false;
+    if (pretest) any = replaceArray(PRETEST_QUESTIONS, pretest) || any;
+    if (capJourney) any = replaceArray(CAP_JOURNEY, capJourney) || any;
+    if (antibiogram) any = replaceArray(ANTIBIOGRAM as { agent: string; mic: string; sir: string }[], antibiogram) || any;
+    if (auditCases) any = replaceArray(AUDIT_CASES, auditCases) || any;
+    if (badges) any = replaceArray(BADGES as { id: string; name: string; desc: string }[], badges) || any;
+    if (any) {
+      rebuildDerivedQuestions();
+      setContentStatus("remote");
+    } else {
+      // DB not seeded / unreachable — local fixtures remain
+      setContentStatus(results.some((r) => r.status === "fulfilled") ? "local" : "error");
+    }
+  })().catch(() => setContentStatus("error"));
+  return initPromise;
+}

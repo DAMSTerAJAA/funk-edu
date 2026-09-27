@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { POSTTEST_QUESTIONS, PRETEST_QUESTIONS, PROFESSIONAL_BASELINE_QUESTIONS } from "../data/content";
+import { POSTTEST_QUESTIONS, PRETEST_QUESTIONS, PROFESSIONAL_BASELINE_QUESTIONS, useContentStatus } from "../data/content";
 import { useStore } from "../store";
 import type { Question } from "../types";
 
 export default function ExamScreen() {
+  useContentStatus(); // re-render when remote question bank arrives
   const { examMode, examIndex, setExamIndex, examAnswers, answerQuestion, finishExam, navigate, user } = useStore();
   const isProfessionalBaseline = examMode === "professional-baseline";
   const isProfessionalPost = examMode === "professional-post";

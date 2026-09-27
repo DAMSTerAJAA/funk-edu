@@ -67,8 +67,33 @@ export async function GET(req: Request) {
   return json({ error: "not found" }, 404);
 }
 
+// ---------- One-time content seeding ----------
+// POST /content/seed  { secret, rows: [{kind,id,payload}] }
+// Guarded by CONTENT_SEED_SECRET env; idempotent via ON CONFLICT upsert.
+async function seedContent(req: Request) {
+  const secret = process.env.CONTENT_SEED_SECRET;
+  if (!secret) return json({ error: "seeding not enabled (CONTENT_SEED_SECRET unset)" }, 403);
+  const body = (await req.json()) as { secret?: string; rows?: { kind: string; id: string; payload: unknown }[] };
+  if (body.secret !== secret) return json({ error: "forbidden" }, 403);
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  if (rows.length === 0) return json({ error: "rows required" }, 400);
+  let upserted = 0;
+  for (const row of rows) {
+    if (!row.kind || !row.id) continue;
+    await pool.query(
+      "insert into funkedu_content(kind,id,payload) values($1,$2,$3) on conflict (kind,id) do update set payload=excluded.payload",
+      [row.kind, row.id, JSON.stringify(row.payload)]
+    );
+    upserted++;
+  }
+  const counts = await pool.query("select kind, count(*)::int as n from funkedu_content group by kind order by kind");
+  return json({ upserted, content: counts.rows });
+}
+
 export async function POST(req: Request) {
   const url = new URL(req.url);
+
+  if (url.pathname.endsWith("/content/seed")) return seedContent(req);
 
   if (url.pathname.endsWith("/accounts/register")) {
     const body = await req.json() as { name?: string; email?: string; intent?: string };

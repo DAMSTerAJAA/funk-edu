@@ -2,7 +2,7 @@
 // FUNK EDU — Screen 03: Dashboard Lab Fundamentals & Missions
 // ============================================================
 import { useStore } from "../store";
-import { BADGES } from "../data/content";
+import { BADGES, useContentStatus } from "../data/content";
 import RadarChart from "../components/RadarChart";
 
 const MISSIONS = [
@@ -15,6 +15,7 @@ const MISSIONS = [
 ];
 
 export default function StudentDashboardScreen() {
+  useContentStatus();
   const { studentAssessment: assessment, user, navigate, setMission, setExam, beginProfessionalUpgrade } = useStore();
   const pre = assessment.pretestScore;
   const baseline = [40, 35, 30, 45, 38];
