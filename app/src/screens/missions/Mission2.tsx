@@ -30,8 +30,23 @@ export default function Mission2() {
 
   const quiz = QUIZ_DRUGS[quizIdx];
 
+  // Defensive: quiz index out of range — never crash to a blank screen
+  if (!quiz) {
+    return (
+      <div className="anim-in" style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div className="card" style={{ textAlign: "center", padding: 40 }}>
+          <span className="tag tag-mint">MISI 02 — TARGET HUNTER</span>
+          <h2 style={{ marginTop: 14 }}>Kuis selesai</h2>
+          <p style={{ color: "var(--text-muted)", marginTop: 8 }}>Semua soal sudah dijawab. Kembali ke dashboard untuk melanjutkan.</p>
+        </div>
+      </div>
+    );
+  }
+
   function answerQuiz(targetId: string) {
-    if (done) return;
+    // Ignore input while feedback is showing (also blocks double-clicks that
+    // would schedule several advances and run quizIdx past the end)
+    if (done || feedback) return;
     const correct = targetId === quiz.target;
     if (correct) {
       setScore((s) => s + 1);
