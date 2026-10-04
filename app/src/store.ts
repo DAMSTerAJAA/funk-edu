@@ -122,6 +122,23 @@ export const emptyProfessionalAssessment: ProfessionalAssessmentState = {
   professionalCertificateUnlocked: false,
 };
 
+/**
+ * Normalize a persisted professional assessment.
+ * Accounts written before the Resistance Lab replaced the PK/PD Workbench carry
+ * `workbenchDone` instead of `resistanceLabDone`; a completed Workbench is the
+ * equivalent credit for the same progression slot, so carry it forward rather
+ * than silently re-locking the post-test gate.
+ */
+function normalizeProfessionalAssessment(stored: Record<string, unknown> | null | undefined): ProfessionalAssessmentState {
+  const source = (stored ?? {}) as Partial<ProfessionalAssessmentState> & { workbenchDone?: boolean };
+  const legacyWorkbenchDone = source.workbenchDone === true;
+  return {
+    ...emptyProfessionalAssessment,
+    ...source,
+    resistanceLabDone: source.resistanceLabDone ?? legacyWorkbenchDone,
+  };
+}
+
 function persistProgress(state: Store) {
   if (!state.backendSynced) return;
   saveProgress({
@@ -238,7 +255,7 @@ export const useStore = create<Store>((set, get) => ({
           rank: account.rank,
         },
         studentAssessment: normalizeAssessment(account.studentAssessment),
-        professionalAssessment: account.professionalAssessment,
+        professionalAssessment: normalizeProfessionalAssessment(account.professionalAssessment as unknown as Record<string, unknown>),
         backendSynced: true,
         route: account.experience === "professional" && !account.professionalAssessment.baselineDone ? "professional-baseline" : account.experience === "professional" ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
         examMode: account.experience === "professional" ? "professional-baseline" : "pre",
