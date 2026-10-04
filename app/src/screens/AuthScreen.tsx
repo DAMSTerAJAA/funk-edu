@@ -4,29 +4,45 @@ import { useStore } from "../store";
 import type { Experience } from "../types";
 
 export default function AuthScreen() {
-  const { registerStudent, startProfessionalRegistration, hydrateFromBackend, backendReady } = useStore();
-  const [stage, setStage] = useState<"track" | "account">("track");
+  const { registerStudent, loginStudent, startProfessionalRegistration, hydrateFromBackend, backendReady } = useStore();
+  const [stage, setStage] = useState<"track" | "account" | "login">("track");
   const [intent, setIntent] = useState<Experience>("student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const valid = name.trim().length >= 2 && /^\S+@\S+\.\S+$/.test(email.trim());
+  const [error, setError] = useState<string | null>(null);
+  const emailValid = /^\S+@\S+\.\S+$/.test(email.trim());
+  const valid = name.trim().length >= 2 && emailValid;
   const canSubmit = valid && backendReady && !submitting;
 
   useEffect(() => { void hydrateFromBackend(); }, [hydrateFromBackend]);
 
   function selectTrack(track: Experience) {
     setIntent(track);
+    setError(null);
     setStage("account");
   }
 
   async function submit() {
     if (!canSubmit) return;
     setSubmitting(true);
+    setError(null);
     try {
       const account = { name: name.trim(), email: email.trim() };
       if (intent === "student") await registerStudent(account);
       else await startProfessionalRegistration(account);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitLogin() {
+    if (!emailValid || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await loginStudent(email.trim());
+      if (!result.ok) setError(result.error ?? "Login failed");
     } finally {
       setSubmitting(false);
     }
@@ -48,14 +64,39 @@ export default function AuthScreen() {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
         <div className="card anim-in" style={{ width: "100%", maxWidth: 480, padding: 32 }}>
-          <h2 style={{ fontSize: 24, marginBottom: 4 }}>{stage === "track" ? "Choose your track" : `${intent === "student" ? PERSONAS.student.label : "Professional"} account`}</h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>{stage === "track" ? "Professional access is granted only after successful verification." : intent === "student" ? "Create a Student account and continue to the fundamentals pre-test." : "Create the account first, then submit a professional claim for verification."}</p>
+          <h2 style={{ fontSize: 24, marginBottom: 4 }}>{stage === "track" ? "Choose your track" : stage === "login" ? "Welcome back" : `${intent === "student" ? PERSONAS.student.label : "Professional"} account`}</h2>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>{stage === "track" ? "Professional access is granted only after successful verification." : stage === "login" ? "Enter the email you registered with to resume your saved progress." : intent === "student" ? "Create a Student account and continue to the fundamentals pre-test." : "Create the account first, then submit a professional claim for verification."}</p>
 
           {stage === "track" ? (
             <div style={{ display: "grid", gap: 12 }}>
               <TrackButton icon={PERSONAS.student.icon} label={PERSONAS.student.label} description={PERSONAS.student.description} onClick={() => selectTrack("student")} />
               <TrackButton icon="🩺" label="Professional" description="GP, resident, or clinical pharmacist. Verification required." onClick={() => selectTrack("professional")} />
+              <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 4 }} onClick={() => { setError(null); setStage("login"); }}>
+                Already registered? Log in →
+              </button>
             </div>
+          ) : stage === "login" ? (
+            <>
+              <label className="label">Email</label>
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") void submitLogin(); }}
+                placeholder="nama@institusi.ac.id"
+                type="email"
+                autoFocus
+                style={inputStyle}
+              />
+              {error && (
+                <div className="anim-in" style={{ marginTop: 14, padding: "10px 14px", borderRadius: "var(--radius-sm)", fontSize: 12.5, lineHeight: 1.6, background: "var(--red-dim)", border: "1px solid var(--red)" }}>
+                  {error}
+                </div>
+              )}
+              <button className="btn btn-primary" disabled={!emailValid || submitting || !backendReady} style={{ width: "100%", justifyContent: "center", marginTop: 24, padding: 13 }} onClick={() => void submitLogin()}>
+                {submitting ? "Logging in…" : "Log in & resume progress →"}
+              </button>
+              <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setError(null); setStage("track"); }}>← Back</button>
+            </>
           ) : (
             <>
               <label className="label">Nama Lengkap</label>

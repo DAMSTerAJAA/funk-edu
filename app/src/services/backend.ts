@@ -36,8 +36,35 @@ export interface VerificationResult {
   reason?: string;
 }
 
+/**
+ * Session token storage.
+ *
+ * Persisted in localStorage so a registered account survives a browser
+ * restart and can resume its progress — the token is the only credential
+ * and it expires server-side after 30 days. The legacy sessionStorage
+ * location is still read once so an in-flight session is not lost.
+ */
+const SESSION_KEY = "funkedu_session";
+
+function readToken(): string | null {
+  const persistent = localStorage.getItem(SESSION_KEY);
+  if (persistent) return persistent;
+  const legacy = sessionStorage.getItem(SESSION_KEY);
+  if (legacy) {
+    localStorage.setItem(SESSION_KEY, legacy);
+    sessionStorage.removeItem(SESSION_KEY);
+    return legacy;
+  }
+  return null;
+}
+
+function writeToken(token: string) {
+  localStorage.setItem(SESSION_KEY, token);
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = sessionStorage.getItem("funkedu_session");
+  const token = readToken();
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -58,16 +85,27 @@ export async function registerAccount(name: string, email: string, intent: strin
     method: "POST",
     body: JSON.stringify({ name, email, intent }),
   });
-  sessionStorage.setItem("funkedu_session", result.token);
+  writeToken(result.token);
+  return result;
+}
+
+/** Restore an existing account by email and resume its stored progress. */
+export async function loginAccount(email: string): Promise<RegisterResponse> {
+  const result = await apiCall<RegisterResponse>("/accounts/login", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  writeToken(result.token);
   return result;
 }
 
 export async function fetchMe(): Promise<{ account: AccountResponse } | null> {
-  if (!sessionStorage.getItem("funkedu_session")) return null;
+  if (!readToken()) return null;
   try {
     return await apiCall<{ account: AccountResponse }>("/accounts/me");
   } catch {
-    sessionStorage.removeItem("funkedu_session");
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
     return null;
   }
 }
@@ -99,5 +137,6 @@ export async function fetchContent(kind: string): Promise<unknown[]> {
 }
 
 export function clearSession() {
-  sessionStorage.removeItem("funkedu_session");
+  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
 }

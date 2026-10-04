@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { resolveRoute, type Route, type RouteState } from "./routes";
 import { professionalVerificationService } from "./services/professionalVerification";
-import { fetchMe, registerAccount, saveProgress, clearSession } from "./services/backend";
+import { fetchMe, registerAccount, loginAccount, saveProgress, clearSession, type AccountResponse } from "./services/backend";
 import type {
   AssessmentState,
   ProfessionalAssessmentState,
@@ -32,6 +32,8 @@ export interface Store {
   navigate: (route: Route) => void;
   setMission: (mission: number) => void;
   registerStudent: (account: { name: string; email: string }) => Promise<void>;
+  /** Restore an existing account by email and resume its stored progress. */
+  loginStudent: (email: string) => Promise<{ ok: boolean; error?: string }>;
   startProfessionalRegistration: (account: { name: string; email: string }) => Promise<void>;
   hydrateFromBackend: () => Promise<void>;
   beginProfessionalUpgrade: () => void;
@@ -165,6 +167,40 @@ function routeState(state: Store): RouteState {
   };
 }
 
+/**
+ * Map a backend account onto local store state. Shared by session restore and
+ * explicit login so both land the user on the same screen with the same
+ * normalized assessment and resumed progress.
+ */
+function accountToState(account: AccountResponse): Partial<Store> {
+  const professional = account.experience === "professional";
+  const baselineDone = account.professionalAssessment?.baselineDone === true;
+  const verified = account.professionalVerification?.status === "verified" && professional;
+  // Mirrors resolveRoute: an unverified professional applicant stays on the
+  // verification gate rather than falling through to the student pretest.
+  const applicant = account.onboardingIntent === "professional" && !verified;
+  return {
+    user: {
+      name: account.name,
+      email: account.email,
+      experience: account.experience,
+      onboardingIntent: account.onboardingIntent,
+      professionalVerification: account.professionalVerification,
+      xp: account.xp,
+      coins: account.coins,
+      streakDays: account.streakDays,
+      rank: account.rank,
+    },
+    studentAssessment: normalizeAssessment(account.studentAssessment),
+    professionalAssessment: normalizeProfessionalAssessment(account.professionalAssessment as unknown as Record<string, unknown>),
+    backendSynced: true,
+    route: applicant ? "professional-verification" : professional && !baselineDone ? "professional-baseline" : professional ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
+    examMode: professional ? "professional-baseline" : "pre",
+    examIndex: 0,
+    examAnswers: {},
+  };
+}
+
 export const useStore = create<Store>((set, get) => ({
   route: "auth",
   activeMission: 1,
@@ -196,16 +232,9 @@ export const useStore = create<Store>((set, get) => ({
       const { account } = await registerAccount(name, email, "student");
       const current = get();
       // A session restore may have finished while registration was in flight — never clobber it
-      if (current.user.email !== email) return;
-      set({
-        user: {
-          ...current.user,
-          experience: account.experience,
-          onboardingIntent: account.onboardingIntent,
-          professionalVerification: account.professionalVerification,
-        },
-        backendSynced: true,
-      });
+      if (current.user.email.toLowerCase() !== email.toLowerCase()) return;
+      // Re-registering an existing email returns that account, so resume its progress
+      set(accountToState(account));
     } catch (error) {
       // Backend unreachable (e.g. protected deployment) — keep local session usable
       console.error("Backend registration failed", error);
@@ -221,16 +250,8 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const { account } = await registerAccount(name, email, "professional");
       const current = get();
-      if (current.user.email !== email) return;
-      set({
-        user: {
-          ...current.user,
-          experience: account.experience,
-          onboardingIntent: account.onboardingIntent,
-          professionalVerification: account.professionalVerification,
-        },
-        backendSynced: true,
-      });
+      if (current.user.email.toLowerCase() !== email.toLowerCase()) return;
+      set(accountToState(account));
     } catch (error) {
       console.error("Backend registration failed", error);
     }
@@ -241,27 +262,19 @@ export const useStore = create<Store>((set, get) => ({
     try {
       const result = await fetchMe();
       if (!result) return;
-      const account = result.account;
-      set({
-        user: {
-          name: account.name,
-          email: account.email,
-          experience: account.experience,
-          onboardingIntent: account.onboardingIntent,
-          professionalVerification: account.professionalVerification,
-          xp: account.xp,
-          coins: account.coins,
-          streakDays: account.streakDays,
-          rank: account.rank,
-        },
-        studentAssessment: normalizeAssessment(account.studentAssessment),
-        professionalAssessment: normalizeProfessionalAssessment(account.professionalAssessment as unknown as Record<string, unknown>),
-        backendSynced: true,
-        route: account.experience === "professional" && !account.professionalAssessment.baselineDone ? "professional-baseline" : account.experience === "professional" ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
-        examMode: account.experience === "professional" ? "professional-baseline" : "pre",
-      });
+      set(accountToState(result.account));
     } finally {
       set({ backendReady: true });
+    }
+  },
+
+  loginStudent: async (email) => {
+    try {
+      const { account } = await loginAccount(email);
+      set(accountToState(account));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Login failed" };
     }
   },
 

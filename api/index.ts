@@ -99,6 +99,21 @@ export async function POST(req: Request) {
 
   if (url.pathname.endsWith("/content/seed")) return seedContent(req);
 
+  // Restore a previously registered account. The prototype has no password
+  // (identity is a self-declared claim), so login is email-based and only
+  // ever matches an account that already exists.
+  if (url.pathname.endsWith("/accounts/login")) {
+    const body = await req.json() as { email?: string };
+    const email = body.email?.trim().toLowerCase();
+    if (!email) return json({ error: "email is required" }, 400);
+    const existing = await pool.query("select * from funkedu_accounts where email=$1", [email]);
+    const row = existing.rows[0] as AccountRow | undefined;
+    if (!row) return json({ error: "no account found for this email" }, 404);
+    const sessionToken = token();
+    await pool.query("insert into funkedu_sessions(token,account_id,expires_at) values($1,$2,now()+interval '30 days')", [sessionToken, row.id]);
+    return json({ token: sessionToken, account: accountPayload(row) });
+  }
+
   if (url.pathname.endsWith("/accounts/register")) {
     const body = await req.json() as { name?: string; email?: string; intent?: string };
     const name = body.name?.trim();
@@ -107,13 +122,18 @@ export async function POST(req: Request) {
     if (!name || !email) return json({ error: "name and email are required" }, 400);
     const existing = await pool.query("select * from funkedu_accounts where email=$1", [email]);
     let row = existing.rows[0] as AccountRow | undefined;
-    if (!row) {
-      const inserted = await pool.query(
-        "insert into funkedu_accounts(id,email,display_name,onboarding_intent) values($1,$2,$3,$4) returning *",
-        [id("acct"), email, name, intent]
-      );
-      row = inserted.rows[0] as AccountRow;
+    if (row) {
+      // Email already registered: return the existing account instead of
+      // overwriting it, so the caller resumes its stored progress.
+      const sessionToken = token();
+      await pool.query("insert into funkedu_sessions(token,account_id,expires_at) values($1,$2,now()+interval '30 days')", [sessionToken, row.id]);
+      return json({ token: sessionToken, account: accountPayload(row), existing: true });
     }
+    const inserted = await pool.query(
+      "insert into funkedu_accounts(id,email,display_name,onboarding_intent) values($1,$2,$3,$4) returning *",
+      [id("acct"), email, name, intent]
+    );
+    row = inserted.rows[0] as AccountRow;
     const sessionToken = token();
     await pool.query("insert into funkedu_sessions(token,account_id,expires_at) values($1,$2,now()+interval '30 days')", [sessionToken, row.id]);
     return json({ token: sessionToken, account: accountPayload(row) });
