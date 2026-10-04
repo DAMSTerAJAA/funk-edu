@@ -140,3 +140,22 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
 }
+
+/**
+ * Revoke the current session on the server, then clear it locally.
+ * Best-effort: the local token is always cleared, so a network failure can
+ * never strand the user in a signed-in state.
+ */
+export async function logoutAccount(): Promise<void> {
+  const token = readToken();
+  clearSession();
+  if (!token) return;
+  try {
+    await fetch(`${API_BASE}/accounts/logout`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // Offline — the row expires on its own.
+  }
+}

@@ -17,6 +17,50 @@ function json(data: unknown, status = 200) {
 function id(prefix: string) { return `${prefix}_${crypto.randomUUID().replaceAll("-", "").slice(0, 20)}`; }
 function token() { return `sess_${crypto.randomUUID().replaceAll("-", "")}`; }
 
+const SESSION_TTL = "30 days";
+
+/**
+ * Issue a session row for an account.
+ *
+ * Every register/login mints a new token, and tokens are only deleted on
+ * logout or when their account is removed — so the table grows with each
+ * sign-in. `pruneSessions` below reclaims the rows that can never
+ * authenticate again; this function also opportunistically drops any other
+ * expired row for the same account, which is safe because those tokens are
+ * already rejected by `accountFromSession`.
+ */
+async function issueSession(accountId: string): Promise<string> {
+  const sessionToken = token();
+  await pool.query(
+    `with expired as (
+       delete from funkedu_sessions where account_id=$1 and expires_at <= now()
+     )
+     insert into funkedu_sessions(token,account_id,expires_at)
+     values($2,$1,now()+interval '${SESSION_TTL}')`,
+    [accountId, sessionToken]
+  );
+  return sessionToken;
+}
+
+// Pruning is opportunistic rather than a cron: the prototype has no scheduler,
+// and an expired session is dead weight that can be reclaimed at any time.
+// Throttled per warm instance so the hot auth path pays for it rarely, and
+// failure is non-fatal — a missed sweep only leaves rows for the next one.
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
+let lastPruneAt = 0;
+
+async function pruneSessions(): Promise<void> {
+  const now = Date.now();
+  if (now - lastPruneAt < PRUNE_INTERVAL_MS) return;
+  lastPruneAt = now;
+  try {
+    await pool.query("delete from funkedu_sessions where expires_at <= now()");
+  } catch (error) {
+    lastPruneAt = 0;
+    console.error("Session prune failed", error);
+  }
+}
+
 async function accountFromSession(req: Request) {
   const header = req.headers.get("authorization");
   if (!header?.startsWith("Bearer ")) return null;
@@ -24,6 +68,10 @@ async function accountFromSession(req: Request) {
     "select a.* from funkedu_sessions s join funkedu_accounts a on a.id=s.account_id where s.token=$1 and s.expires_at>now()",
     [header.slice(7)]
   );
+  // Throttled: only the first authenticated request per hour per instance
+  // actually touches the table. Awaited so the sweep completes before the
+  // serverless instance freezes.
+  if (result.rows[0]) await pruneSessions();
   return result.rows[0] ?? null;
 }
 
@@ -109,8 +157,7 @@ export async function POST(req: Request) {
     const existing = await pool.query("select * from funkedu_accounts where email=$1", [email]);
     const row = existing.rows[0] as AccountRow | undefined;
     if (!row) return json({ error: "no account found for this email" }, 404);
-    const sessionToken = token();
-    await pool.query("insert into funkedu_sessions(token,account_id,expires_at) values($1,$2,now()+interval '30 days')", [sessionToken, row.id]);
+    const sessionToken = await issueSession(row.id);
     return json({ token: sessionToken, account: accountPayload(row) });
   }
 
@@ -125,8 +172,7 @@ export async function POST(req: Request) {
     if (row) {
       // Email already registered: return the existing account instead of
       // overwriting it, so the caller resumes its stored progress.
-      const sessionToken = token();
-      await pool.query("insert into funkedu_sessions(token,account_id,expires_at) values($1,$2,now()+interval '30 days')", [sessionToken, row.id]);
+      const sessionToken = await issueSession(row.id);
       return json({ token: sessionToken, account: accountPayload(row), existing: true });
     }
     const inserted = await pool.query(
@@ -134,9 +180,18 @@ export async function POST(req: Request) {
       [id("acct"), email, name, intent]
     );
     row = inserted.rows[0] as AccountRow;
-    const sessionToken = token();
-    await pool.query("insert into funkedu_sessions(token,account_id,expires_at) values($1,$2,now()+interval '30 days')", [sessionToken, row.id]);
+    const sessionToken = await issueSession(row.id);
     return json({ token: sessionToken, account: accountPayload(row) });
+  }
+
+  // Drop the caller's session row so logging out reclaims it immediately
+  // instead of leaving it to expire.
+  if (url.pathname.endsWith("/accounts/logout")) {
+    const header = req.headers.get("authorization");
+    if (header?.startsWith("Bearer ")) {
+      await pool.query("delete from funkedu_sessions where token=$1", [header.slice(7)]);
+    }
+    return json({ ok: true });
   }
 
   if (url.pathname.endsWith("/accounts/progress")) {

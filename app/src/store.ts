@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { resolveRoute, type Route, type RouteState } from "./routes";
 import { professionalVerificationService } from "./services/professionalVerification";
-import { fetchMe, registerAccount, loginAccount, saveProgress, clearSession, type AccountResponse } from "./services/backend";
+import { fetchMe, registerAccount, loginAccount, saveProgress, clearSession, logoutAccount, type AccountResponse } from "./services/backend";
 import type {
   AssessmentState,
   ProfessionalAssessmentState,
@@ -50,6 +50,8 @@ export interface Store {
   awardMissionBonus: (mission: number, xp: number) => boolean;
   addXP: (xp: number) => void;
   reset: () => void;
+  /** Revoke the session server-side and return to the auth screen; saved progress stays on the account. */
+  logout: () => Promise<void>;
 }
 
 const RANKS: [number, string][] = [
@@ -141,9 +143,22 @@ function normalizeProfessionalAssessment(stored: Record<string, unknown> | null 
   };
 }
 
+/**
+ * Persist progress, serialized.
+ *
+ * A single action can commit twice in quick succession (Mission 1 awards the
+ * bonus and then completes the mission), and each call snapshots the whole
+ * account. Firing both at once let the second request overwrite the first,
+ * so the losing half of the update was silently dropped. Saves are now
+ * coalesced through a single in-flight request: only the newest snapshot is
+ * sent, and it is sent after the previous request settles.
+ */
+let saveInFlight: Promise<unknown> | null = null;
+let queuedSave: Parameters<typeof saveProgress>[0] | null = null;
+
 function persistProgress(state: Store) {
   if (!state.backendSynced) return;
-  saveProgress({
+  queuedSave = {
     experience: state.user.experience,
     onboardingIntent: state.user.onboardingIntent,
     xp: state.user.xp,
@@ -153,7 +168,21 @@ function persistProgress(state: Store) {
     studentAssessment: state.studentAssessment,
     professionalAssessment: state.professionalAssessment,
     professionalVerification: state.user.professionalVerification,
-  }).catch((error: unknown) => console.error("Progress save failed", error));
+  };
+  if (saveInFlight) return;
+  saveInFlight = (async () => {
+    try {
+      while (queuedSave) {
+        const payload = queuedSave;
+        queuedSave = null;
+        await saveProgress(payload);
+      }
+    } catch (error) {
+      console.error("Progress save failed", error);
+    } finally {
+      saveInFlight = null;
+    }
+  })();
 }
 
 function routeState(state: Store): RouteState {
@@ -523,6 +552,22 @@ export const useStore = create<Store>((set, get) => ({
 
   reset: () => {
     clearSession();
+    set({
+      route: "auth",
+      activeMission: 1,
+      user: initialUser,
+      studentAssessment: initialStudentAssessment,
+      professionalAssessment: emptyProfessionalAssessment,
+      examIndex: 0,
+      examMode: "pre",
+      examAnswers: {},
+      backendReady: true,
+      backendSynced: false,
+    });
+  },
+
+  logout: async () => {
+    await logoutAccount();
     set({
       route: "auth",
       activeMission: 1,
