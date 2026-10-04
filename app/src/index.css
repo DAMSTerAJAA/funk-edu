@@ -183,3 +183,26 @@ code, .mono { font-family: var(--font-mono); }
   to { opacity: 1; transform: translateY(0); }
 }
 .anim-in { animation: fadeSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+/* ---------- Resistance Lab layout ---------- */
+.wb-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.wb-grid { display: grid; grid-template-columns: 380px 1fr; gap: 18px; align-items: start; }
+.wb-petri { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+.wb-preset {
+  text-align: left; width: 100%; padding: 12px 14px; cursor: pointer;
+  background: var(--surface-low); border: 1px solid var(--surface-highest);
+  border-radius: var(--radius-sm); color: var(--text-primary); transition: var(--transition);
+}
+.wb-preset:hover:not(:disabled) { border-color: var(--primary-dim); }
+.wb-preset:disabled { opacity: 0.45; cursor: not-allowed; }
+.wb-preset.running { border-color: var(--amber); background: var(--amber-dim); }
+input[type="range"].wb-range { accent-color: var(--primary); width: 100%; margin: 10px 0 4px; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (max-width: 980px) {
+  .wb-grid { grid-template-columns: 1fr; }
+  .wb-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-in { animation: none; }
+  .btn, .pill, .wb-preset { transition: none; }
+}

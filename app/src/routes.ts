@@ -2,7 +2,7 @@ import type { Experience, ProfessionalVerificationState } from "./types";
 
 export type Route =
   | "auth" | "pretest" | "student-dashboard" | "professional-dashboard" | "professional-verification" | "professional-baseline"
-  | "mission" | "workbench" | "clinical-room" | "professional-audit" | "final-challenge" | "posttest" | "certificate" | "profile";
+  | "mission" | "workbench" | "resistance-lab" | "clinical-room" | "professional-audit" | "final-challenge" | "posttest" | "certificate" | "profile";
 
 export interface RouteMeta {
   label: string;
@@ -29,6 +29,7 @@ export const ROUTES: Record<Route, RouteMeta> = {
   "professional-baseline": { label: "Professional Baseline", shellVisible: true, requiredExperience: "professional" },
   mission: { label: "Missions", shellVisible: true, requiredExperience: "student", progressionGuard: (s) => s.studentAssessment.completedMissions.includes(1) },
   workbench: { label: "PK/PD Workbench", shellVisible: true },
+  "resistance-lab": { label: "Resistance Lab", shellVisible: true },
   "clinical-room": { label: "Decision Room", shellVisible: true },
   "professional-audit": { label: "Prescription Audit", shellVisible: true, requiredExperience: "professional" },
   "final-challenge": { label: "Final Challenge", shellVisible: true },

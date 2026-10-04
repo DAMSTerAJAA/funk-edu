@@ -6,6 +6,7 @@ import StudentDashboardScreen from "./screens/StudentDashboardScreen";
 import ProfessionalDashboardScreen from "./screens/ProfessionalDashboardScreen";
 import ProfessionalVerificationScreen from "./screens/ProfessionalVerificationScreen";
 import WorkbenchScreen from "./screens/WorkbenchScreen";
+import ResistanceLabScreen from "./screens/ResistanceLabScreen";
 import ClinicalRoomScreen from "./screens/ClinicalRoomScreen";
 import CertificateScreen from "./screens/CertificateScreen";
 import ProfileScreen from "./screens/ProfileScreen";
@@ -37,6 +38,7 @@ export default function App() {
     }
     case "professional-audit": content = <Mission6 />; break;
     case "workbench": content = <WorkbenchScreen />; break;
+    case "resistance-lab": content = <ResistanceLabScreen />; break;
     case "clinical-room": content = <ClinicalRoomScreen />; break;
     case "certificate": content = <CertificateScreen />; break;
     default: content = <StudentDashboardScreen />;

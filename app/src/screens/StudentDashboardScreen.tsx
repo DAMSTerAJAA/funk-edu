@@ -140,6 +140,13 @@ export default function StudentDashboardScreen() {
           </p>
           <button className="btn btn-primary" onClick={() => navigate("workbench")}>Buka Simulator →</button>
         </div>
+        <div className="card" style={{ borderColor: "var(--primary-dim)" }}>
+          <h3 style={{ fontSize: 17 }}>🧬 Resistance Lab</h3>
+          <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 14px" }}>
+            Simulasi evolusi resistensi: atur dosis × MIC, jalankan skenario, dan amati seleksi galur rentan vs resisten di cawan petri. Modul eksplorasi bebas.
+          </p>
+          <button className="btn btn-secondary" onClick={() => navigate("resistance-lab")}>Buka Lab →</button>
+        </div>
         <div className="card" style={{ borderColor: allMissionsDone ? "var(--secondary)" : "var(--surface-highest)", opacity: allMissionsDone ? 1 : 0.5 }}>
           <h3 style={{ fontSize: 17 }}>🏥 Clinical Decision Room</h3>
           <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 14px" }}>

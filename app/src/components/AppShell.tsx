@@ -3,8 +3,8 @@ import { PERSONAS } from "../data/personas";
 import { ROUTES, type Route } from "../routes";
 import { useStore } from "../store";
 
-const STUDENT_NAV: Route[] = ["student-dashboard", "mission", "workbench", "clinical-room", "certificate"];
-const PROFESSIONAL_NAV: Route[] = ["professional-dashboard", "professional-baseline", "workbench", "clinical-room", "certificate"];
+const STUDENT_NAV: Route[] = ["student-dashboard", "mission", "workbench", "resistance-lab", "clinical-room", "certificate"];
+const PROFESSIONAL_NAV: Route[] = ["professional-dashboard", "professional-baseline", "workbench", "resistance-lab", "clinical-room", "certificate"];
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { route, navigate, user, studentAssessment, professionalAssessment } = useStore();
