@@ -36,6 +36,51 @@ export interface ProfessionalAssessmentState {
   professionalCertificateUnlocked: boolean;
 }
 
+export type DrugId = "piperacillin_tazo" | "meropenem" | "vancomycin" | "gentamicin" | "levofloxacin";
+
+export interface DrugInfo {
+  id: DrugId;
+  name: string;
+  klass: string;
+  aware: "ACCESS" | "WATCH" | "RESERVE";
+  category: "time" | "concentration" | "auc";
+  halfLifeH: number;
+  vdPerKg: number;
+  proteinBinding: number;
+  doseOptionsG: number[];
+  tauOptionsH: number[];
+  tinfOptionsH: number[];
+  micOptions: number[];
+  targetDesc: string;
+  targetPct: number;
+  spectrum: "narrow" | "broad" | "reserve";
+}
+
+export interface SimulationConfig {
+  activeDrug: DrugId;
+  doseGrams: number;
+  intervalHours: number;
+  infusionDurationHours: number;
+  micTarget: number;
+  patientWeightKg: number;
+  crCl: number;
+  steadyStateDoses: number;
+}
+
+export interface SimulationMetrics {
+  cMax: number;
+  cTrough: number;
+  auc24: number;
+  fTOverMic: number;
+  cMaxOverMic: number;
+  aucOverMic: number;
+  isOptimal: boolean;
+  status: "optimal" | "suboptimal" | "failure";
+  colonyCountLive: number;
+  resistantMutantCount: number;
+  microbiomePreservation: number;
+}
+
 export interface AssessmentState {
   pretestScore: number | null;
   pretestDone: boolean;

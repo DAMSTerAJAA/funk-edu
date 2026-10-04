@@ -19,6 +19,7 @@ Platform edukasi web untuk melatih pengambilan keputusan peresepan antimikroba r
 | **Professional Clinical Track** | Baseline 6 soal, Resistance Lab, Clinical Decision Room, Prescription Audit, post-test, dan Professional Track Certificate |
 | **Progress Preservation** | Fondasi Student tetap tersimpan saat upgrade; tidak memenuhi gate atau sertifikat Professional |
 | **Resistance Lab (Misi 4)** | Simulasi evolusi populasi rentan (S) vs resisten (R): slider dosis × MIC, 4 skenario preset, cawan petri, grafik populasi & proporsi resisten, verdict klinis |
+| **PK/PD Workbench (modul eksplorasi)** | Simulator bebas 5 agen antimikroba: model 1-kompartemen IV infus, kurva plasma 48 jam, extended infusion, target %fT>MIC / Cmax/MIC / AUC/MIC, dinamika koloni cawan petri, stewardship scorecard. Tidak memberi XP dan tidak menyentuh progres misi |
 
 ## Tech Stack
 
@@ -49,8 +50,8 @@ FUNKEDU/
 │   └── prd.md                  # Product Requirement Document (spesifikasi penuh)
 └── app/                        # Frontend React
     └── src/
-        ├── components/         # AppShell, MissionFooter, PetriDish, RadarChart
-        ├── data/               # resistanceEngine, content, centralized personas
+        ├── components/         # AppShell, MissionFooter, PetriDish, PlasmaCurve, RadarChart
+        ├── data/               # resistanceEngine, pkEngine, drugs, content, centralized personas
         ├── services/           # ProfessionalVerificationService + deterministic prototype adapter
         ├── screens/            # Track onboarding, verification, Student/Professional dashboards, learning, certificates
         │   └── missions/       # Misi 1–6

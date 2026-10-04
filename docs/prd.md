@@ -29,7 +29,7 @@ State efektif yang dirender:
 - `verification pending/rejected/unavailable`: effective experience tetap Student; initial Professional applicant tetap berada pada verification gate sampai memilih **Continue as Student**.
 - `verified professional`: Professional dashboard aktif, verified role tampil sebagai persona badge, dan Student fundamentals hanya menjadi historical evidence.
 
-Route policy terpusat menjaga boundary pada setiap `navigate()` dan redirect action. Tombol disabled hanya affordance visual, bukan enforcement. Verified Professional diarahkan dari Student dashboard ke Professional dashboard; pengguna yang belum verified diarahkan keluar dari semua Professional routes; Professional yang belum menyelesaikan baseline diarahkan ke `professional-baseline`.
+Route policy terpusat menjaga boundary pada setiap `navigate()` dan redirect action. Tombol disabled hanya affordance visual, bukan enforcement. Verified Professional diarahkan dari Student dashboard ke Professional dashboard; pengguna yang belum verified diarahkan keluar dari semua Professional routes; Professional yang belum menyelesaikan baseline diarahkan ke `professional-baseline`. Route eksplorasi `workbench` (PK/PD Workbench) ikut gate baseline Professional, tetapi tidak masuk gate progres Student mana pun — ia terbuka sejak dashboard Student.
 
 Professional verification saat ini adalah adapter dummy deterministik di balik `ProfessionalVerificationService`. Fixture `DEMO-VERIFIED-GP`, `DEMO-VERIFIED-RESIDENT`, dan `DEMO-VERIFIED-PHARMACIST` menghasilkan verified role yang cocok; `DEMO-PENDING` menghasilkan pending; input non-fixture menghasilkan rejected. UI wajib menampilkan **“Simulasi verifikasi — bukan validasi KKI/SATUSEHAT”**. Produksi memerlukan integrasi server-to-server berizin dengan registry/data service Indonesia yang relevan; browser tidak boleh memanggil atau scrape layanan tersebut langsung.
 
@@ -117,6 +117,16 @@ Credential yang dihasilkan adalah educational prototype. Professional certificat
   │     │     ├── <TimeOutDecisionModule action="de-escalate" />
   │     │     └── <RadarChartSixDomains />
   │     │
+  │     ├── [Screen: PK/PD Workbench — Modul Eksplorasi]
+  │     │     ├── <DrugSelectorPills (5 Agen) />
+  │     │     ├── <PatientBioDataSliders (Berat Badan | CrCl) />
+  │     │     ├── <RegimenController (Dosis | τ | Tinf | MIC Target) />
+  │     │     ├── <SteadyStateTelemetryGrid />
+  │     │     ├── <AttainmentProgressBar />
+  │     │     ├── <PlasmaCurveMultiDose (48 Jam) />
+  │     │     ├── <PetriDishTimelineArray (t = 0/12/24/36/48 h) />
+  │     │     └── <StewardshipScorecardBreakdown />
+  │     │
   │     └── [Screen: Student / Professional Educational Credential]
   │           ├── <OverallScoreSummary />
   │           ├── <DomainRadarChart />
@@ -178,10 +188,28 @@ interface GlobalBiolabState {
     posttestDone: boolean;
     professionalCertificateUnlocked: boolean;
   };
+  // PK/PD Workbench — modul eksplorasi bebas. Per-browser saja:
+  // tidak ikut `persistProgress` dan tidak ada padanannya di akun backend.
+  simulation: {
+    activeDrug: 'piperacillin_tazo' | 'meropenem' | 'vancomycin' | 'gentamicin' | 'levofloxacin';
+    doseGrams: number;
+    intervalHours: number;
+    infusionDurationHours: number;
+    micTarget: number;
+    patientWeightKg: number;
+    crCl: number;
+    steadyStateDoses: number;
+  };
 }
 ```
 
 Student assessment tidak disalin ke Professional assessment. Upgrade mempertahankan Student evidence tetapi selalu menginisialisasi Professional baseline, module flags, post-test, dan certificate state sebagai kosong.
+
+#### 4.1.1. Modul Eksplorasi PK/PD Workbench (route `workbench`)
+
+Simulator bebas di luar rantai misi: lima agen antimikroba, model 1-kompartemen IV infus, kurva plasma 48 jam, opsi extended infusion, target `%fT>MIC` / `Cmax/MIC` / `AUC/MIC`, dinamika koloni cawan petri, dan stewardship scorecard. Obat dimuat dari content API (`kind="drugs"`) dengan fallback fixture lokal `LOCAL_DRUGS`.
+
+Modul ini **tidak** memberi XP, tidak menulis flag assessment apa pun, dan tidak terpengaruh gate progres. Ia hanya dikunci oleh gate Professional baseline bersama `resistance-lab`, `clinical-room`, dan `certificate`. Tantangan ber-XP untuk Misi 4 tetap Resistance Lab.
 
 #### 4.2. Algoritma Simulasi Evolusi Resistensi (Model Populasi S vs R)
 Model edukatif yang disederhanakan — bukan farmakokinetik klinis riil. Galur rentan (S) dan resisten (R) dibagi dengan `SUBSTEPS = 10` langkah per hari:

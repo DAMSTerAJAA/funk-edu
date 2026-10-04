@@ -132,7 +132,14 @@ export default function StudentDashboardScreen() {
 
       {/* ---------- Advanced modules ---------- */}
       <div className="label" style={{ marginBottom: 12 }}>MODUL LANJUTAN</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="card" style={{ borderColor: "var(--primary-dim)" }}>
+          <h3 style={{ fontSize: 17 }}>🧪 PK/PD Workbench</h3>
+          <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 14px" }}>
+            Eksperimen bebas: 5 agen, slider dosis, extended infusion, kurva plasma 48 jam real-time.
+          </p>
+          <button className="btn btn-secondary" onClick={() => navigate("workbench")}>Buka Simulator →</button>
+        </div>
         <div className="card" style={{ borderColor: "var(--primary-dim)" }}>
           <h3 style={{ fontSize: 17 }}>🧬 Resistance Lab</h3>
           <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 14px" }}>

@@ -5,10 +5,12 @@ import { create } from "zustand";
 import { resolveRoute, type Route, type RouteState } from "./routes";
 import { professionalVerificationService } from "./services/professionalVerification";
 import { fetchMe, registerAccount, loginAccount, saveProgress, clearSession, logoutAccount, type AccountResponse } from "./services/backend";
+import { DEFAULT_SIM } from "./data/drugs";
 import type {
   AssessmentState,
   ProfessionalAssessmentState,
   ProfessionalVerificationRequest,
+  SimulationConfig,
   UserState,
 } from "./types";
 
@@ -24,6 +26,8 @@ export interface Store {
   examIndex: number;
   examMode: ExamMode;
   examAnswers: Record<number, string>;
+  /** PK/PD Workbench exploration state — per-browser only, never persisted to the account. */
+  simulation: SimulationConfig;
   /** false while a session-restore request is in flight — guards against racing a fresh local registration */
   backendReady: boolean;
   /** true once the account exists on the backend; enables progress persistence */
@@ -41,6 +45,7 @@ export interface Store {
   submitProfessionalVerification: (request: ProfessionalVerificationRequest) => Promise<void>;
   checkProfessionalVerification: () => Promise<void>;
   setExam: (mode: ExamMode) => void;
+  updateSim: (patch: Partial<SimulationConfig>) => void;
   answerQuestion: (questionId: number, key: string) => void;
   setExamIndex: (index: number) => void;
   finishExam: (score: number) => void;
@@ -239,6 +244,7 @@ export const useStore = create<Store>((set, get) => ({
   examIndex: 0,
   examMode: "pre",
   examAnswers: {},
+  simulation: { ...DEFAULT_SIM },
   backendReady: true,
   backendSynced: false,
 
@@ -445,6 +451,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   setExam: (examMode) => set({ examMode, examIndex: 0, examAnswers: {} }),
+  updateSim: (patch) => set({ simulation: { ...get().simulation, ...patch } }),
   answerQuestion: (questionId, key) => set({ examAnswers: { ...get().examAnswers, [questionId]: key } }),
   setExamIndex: (examIndex) => set({ examIndex }),
 
@@ -561,6 +568,7 @@ export const useStore = create<Store>((set, get) => ({
       examIndex: 0,
       examMode: "pre",
       examAnswers: {},
+      simulation: { ...DEFAULT_SIM },
       backendReady: true,
       backendSynced: false,
     });
@@ -577,6 +585,7 @@ export const useStore = create<Store>((set, get) => ({
       examIndex: 0,
       examMode: "pre",
       examAnswers: {},
+      simulation: { ...DEFAULT_SIM },
       backendReady: true,
       backendSynced: false,
     });

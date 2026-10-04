@@ -15,15 +15,15 @@ const STUDENT_NEXT: Record<number, { route: Route; mission: number | null; label
 };
 
 interface MissionFooterProps {
-  /** Student mission number shown on screen; omit on professional-only views. */
+  /** Student mission number shown on screen; omit on professional-only or exploration views. */
   mission?: number;
-  /** Mission objective met — unlocks the next step. */
-  complete: boolean;
+  /** Mission objective met — unlocks the next step. Defaults to false. */
+  complete?: boolean;
   /** Present when the mission can be attempted again after a wrong verdict. */
   onRetry?: () => void;
 }
 
-export default function MissionFooter({ mission, complete, onRetry }: MissionFooterProps) {
+export default function MissionFooter({ mission, complete = false, onRetry }: MissionFooterProps) {
   const { navigate, setMission, user } = useStore();
   const professional = user.experience === "professional";
   const next = !professional && mission ? STUDENT_NEXT[mission] : null;

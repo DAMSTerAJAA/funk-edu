@@ -2,7 +2,7 @@ import type { Experience, ProfessionalVerificationState } from "./types";
 
 export type Route =
   | "auth" | "pretest" | "student-dashboard" | "professional-dashboard" | "professional-verification" | "professional-baseline"
-  | "mission" | "resistance-lab" | "clinical-room" | "professional-audit" | "final-challenge" | "posttest" | "certificate" | "profile";
+  | "mission" | "resistance-lab" | "workbench" | "clinical-room" | "professional-audit" | "final-challenge" | "posttest" | "certificate" | "profile";
 
 export interface RouteMeta {
   label: string;
@@ -29,6 +29,7 @@ export const ROUTES: Record<Route, RouteMeta> = {
   "professional-baseline": { label: "Professional Baseline", shellVisible: true, requiredExperience: "professional" },
   mission: { label: "Missions", shellVisible: true, requiredExperience: "student", progressionGuard: (s) => s.studentAssessment.completedMissions.includes(1) },
   "resistance-lab": { label: "Resistance Lab", shellVisible: true },
+  workbench: { label: "PK/PD Workbench", shellVisible: true },
   "clinical-room": { label: "Decision Room", shellVisible: true },
   "professional-audit": { label: "Prescription Audit", shellVisible: true, requiredExperience: "professional" },
   "final-challenge": { label: "Final Challenge", shellVisible: true },
@@ -48,7 +49,7 @@ export function resolveRoute(requested: Route, state: RouteState): Route {
   if (!verified && requested === "professional-dashboard") return "student-dashboard";
   if (!verified && requested === "professional-baseline") return "student-dashboard";
   if (verified && requested === "professional-baseline" && state.professionalAssessment.baselineDone) return "professional-dashboard";
-  if (verified && !state.professionalAssessment.baselineDone && ["resistance-lab", "clinical-room", "professional-audit", "final-challenge", "posttest", "certificate"].includes(requested)) return "professional-baseline";
+  if (verified && !state.professionalAssessment.baselineDone && ["resistance-lab", "workbench", "clinical-room", "professional-audit", "final-challenge", "posttest", "certificate"].includes(requested)) return "professional-baseline";
   if (verified && requested === "mission") return "professional-dashboard";
   if (!verified && requested === "professional-audit") return "student-dashboard";
   if (requested === "certificate") {

@@ -3,8 +3,8 @@ import { PERSONAS } from "../data/personas";
 import { ROUTES, type Route } from "../routes";
 import { useStore } from "../store";
 
-const STUDENT_NAV: Route[] = ["student-dashboard", "mission", "resistance-lab", "clinical-room", "certificate"];
-const PROFESSIONAL_NAV: Route[] = ["professional-dashboard", "professional-baseline", "resistance-lab", "clinical-room", "certificate"];
+const STUDENT_NAV: Route[] = ["student-dashboard", "mission", "resistance-lab", "workbench", "clinical-room", "certificate"];
+const PROFESSIONAL_NAV: Route[] = ["professional-dashboard", "professional-baseline", "resistance-lab", "workbench", "clinical-room", "certificate"];
 const MISSION_ROUTE_ORDER = [1, 2, 3, 4, 5, 6];
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -24,7 +24,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }
 
   function locked(target: Route) {
-    if (professional && !professionalAssessment.baselineDone && ["resistance-lab", "clinical-room", "certificate"].includes(target)) return true;
+    if (professional && !professionalAssessment.baselineDone && ["resistance-lab", "workbench", "clinical-room", "certificate"].includes(target)) return true;
     if (!professional && target === "clinical-room") return studentAssessment.completedMissions.length < 6;
     if (!professional && target === "certificate") return !studentAssessment.posttestDone || (studentAssessment.posttestScore ?? 0) < 8;
     if (professional && target === "certificate") return !professionalAssessment.professionalCertificateUnlocked;
