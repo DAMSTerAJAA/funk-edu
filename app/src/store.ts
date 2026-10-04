@@ -2,7 +2,6 @@
 // FUNK EDU — Global Store (Zustand, prototype client-side state)
 // ============================================================
 import { create } from "zustand";
-import { DEFAULT_SIM } from "./data/drugs";
 import { resolveRoute, type Route, type RouteState } from "./routes";
 import { professionalVerificationService } from "./services/professionalVerification";
 import { fetchMe, registerAccount, saveProgress, clearSession } from "./services/backend";
@@ -10,7 +9,6 @@ import type {
   AssessmentState,
   ProfessionalAssessmentState,
   ProfessionalVerificationRequest,
-  SimulationConfig,
   UserState,
 } from "./types";
 
@@ -21,7 +19,6 @@ export interface Store {
   route: Route;
   activeMission: number;
   user: UserState;
-  simulation: SimulationConfig;
   studentAssessment: AssessmentState;
   professionalAssessment: ProfessionalAssessmentState;
   examIndex: number;
@@ -41,13 +38,14 @@ export interface Store {
   continueAsStudent: () => void;
   submitProfessionalVerification: (request: ProfessionalVerificationRequest) => Promise<void>;
   checkProfessionalVerification: () => Promise<void>;
-  updateSim: (patch: Partial<SimulationConfig>) => void;
   setExam: (mode: ExamMode) => void;
   answerQuestion: (questionId: number, key: string) => void;
   setExamIndex: (index: number) => void;
   finishExam: (score: number) => void;
   completeMission: (mission: number, xp: number) => void;
-  completeSharedModule: (module: "workbench" | "clinical-room" | "prescription-audit", target: LearningTarget) => void;
+  completeSharedModule: (module: "resistance-lab" | "clinical-room" | "prescription-audit", target: LearningTarget) => void;
+  /** One-time bonus XP for a mission objective; returns false when it was already granted. */
+  awardMissionBonus: (mission: number, xp: number) => boolean;
   addXP: (xp: number) => void;
   reset: () => void;
 }
@@ -95,15 +93,28 @@ const initialStudentAssessment: AssessmentState = {
   answersMap: {},
   unlockedMissions: [1],
   completedMissions: [],
+  bonusMissions: [],
   earnedBadges: [],
   finalChallengeDone: false,
   clinicalRoomDone: false,
 };
 
+/** Accounts persisted before a field existed come back incomplete — fill the gaps. */
+function normalizeAssessment(stored: Partial<AssessmentState> | null | undefined): AssessmentState {
+  return {
+    ...initialStudentAssessment,
+    ...(stored ?? {}),
+    unlockedMissions: stored?.unlockedMissions ?? initialStudentAssessment.unlockedMissions,
+    completedMissions: stored?.completedMissions ?? [],
+    bonusMissions: stored?.bonusMissions ?? [],
+    earnedBadges: stored?.earnedBadges ?? [],
+  };
+}
+
 export const emptyProfessionalAssessment: ProfessionalAssessmentState = {
   baselineScore: null,
   baselineDone: false,
-  workbenchDone: false,
+  resistanceLabDone: false,
   clinicalRoomDone: false,
   prescriptionAuditDone: false,
   posttestScore: null,
@@ -141,7 +152,6 @@ export const useStore = create<Store>((set, get) => ({
   route: "auth",
   activeMission: 1,
   user: initialUser,
-  simulation: { ...DEFAULT_SIM },
   studentAssessment: initialStudentAssessment,
   professionalAssessment: emptyProfessionalAssessment,
   examIndex: 0,
@@ -227,7 +237,7 @@ export const useStore = create<Store>((set, get) => ({
           streakDays: account.streakDays,
           rank: account.rank,
         },
-        studentAssessment: account.studentAssessment,
+        studentAssessment: normalizeAssessment(account.studentAssessment),
         professionalAssessment: account.professionalAssessment,
         backendSynced: true,
         route: account.experience === "professional" && !account.professionalAssessment.baselineDone ? "professional-baseline" : account.experience === "professional" ? "professional-dashboard" : account.studentAssessment.pretestDone ? "student-dashboard" : "pretest",
@@ -375,7 +385,6 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  updateSim: (patch) => set({ simulation: { ...get().simulation, ...patch } }),
   setExam: (examMode) => set({ examMode, examIndex: 0, examAnswers: {} }),
   answerQuestion: (questionId, key) => set({ examAnswers: { ...get().examAnswers, [questionId]: key } }),
   setExamIndex: (examIndex) => set({ examIndex }),
@@ -393,7 +402,7 @@ export const useStore = create<Store>((set, get) => ({
       return;
     }
     if (state.examMode === "professional-post") {
-      const modulesDone = state.professionalAssessment.workbenchDone && state.professionalAssessment.clinicalRoomDone && state.professionalAssessment.prescriptionAuditDone;
+      const modulesDone = state.professionalAssessment.resistanceLabDone && state.professionalAssessment.clinicalRoomDone && state.professionalAssessment.prescriptionAuditDone;
       const passed = score >= 8 && modulesDone;
       set({
         professionalAssessment: {
@@ -454,14 +463,26 @@ export const useStore = create<Store>((set, get) => ({
   completeSharedModule: (module, target) => {
     const state = get();
     if (target === "student") {
-      if (module === "workbench") state.completeMission(4, 150);
+      if (module === "resistance-lab") state.completeMission(4, 150);
       if (module === "clinical-room") set({ studentAssessment: { ...state.studentAssessment, clinicalRoomDone: true } });
       if (module === "prescription-audit") state.completeMission(6, 130);
       return;
     }
-    const field = module === "workbench" ? "workbenchDone" : module === "clinical-room" ? "clinicalRoomDone" : "prescriptionAuditDone";
+    const field = module === "resistance-lab" ? "resistanceLabDone" : module === "clinical-room" ? "clinicalRoomDone" : "prescriptionAuditDone";
     set({ professionalAssessment: { ...state.professionalAssessment, [field]: true } });
     persistProgress(get());
+  },
+
+  awardMissionBonus: (mission, xp) => {
+    const state = get();
+    if (state.studentAssessment.bonusMissions.includes(mission)) return false;
+    const newXP = Math.max(0, state.user.xp + xp);
+    set({
+      studentAssessment: { ...state.studentAssessment, bonusMissions: [...state.studentAssessment.bonusMissions, mission] },
+      user: { ...state.user, xp: newXP, coins: state.user.coins + Math.max(0, Math.round(xp / 10)), rank: rankFor(newXP) },
+    });
+    persistProgress(get());
+    return true;
   },
 
   addXP: (xp) => {
@@ -476,7 +497,6 @@ export const useStore = create<Store>((set, get) => ({
       route: "auth",
       activeMission: 1,
       user: initialUser,
-      simulation: { ...DEFAULT_SIM },
       studentAssessment: initialStudentAssessment,
       professionalAssessment: emptyProfessionalAssessment,
       examIndex: 0,

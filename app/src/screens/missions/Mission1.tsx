@@ -3,6 +3,7 @@
 // ============================================================
 import { useState } from "react";
 import { useStore } from "../../store";
+import MissionFooter from "../../components/MissionFooter";
 
 const CENTOR_ITEMS = [
   { id: "fever", label: "Demam > 38°C (riwayat/pengukuran)", present: true },
@@ -12,9 +13,11 @@ const CENTOR_ITEMS = [
 ];
 
 export default function Mission1() {
-  const { completeMission, addXP } = useStore();
+  const { completeMission, awardMissionBonus, addXP } = useStore();
   const [checked, setChecked] = useState<string[]>(["fever", "exudate", "lad"]);
   const [decision, setDecision] = useState<string | null>(null);
+  const [penalized, setPenalized] = useState(false);
+  const [bonusAwarded, setBonusAwarded] = useState(false);
 
   const score = checked.length + 0; // usia 24 → +1? Centor: 15-44 = 0 koreksi; total = jumlah kriteria
   const verdict =
@@ -31,18 +34,25 @@ export default function Mission1() {
     { key: "azithro", text: "Beri Azitromisin 500 mg 3 hari", correct: false, fb: "Prematur — makrolida bukan lini pertama GAS (resistensi meningkat), dan belum ada konfirmasi bakteri." },
   ];
 
+  // One-shot: the first verdict is final until "Coba lagi", so the completion
+  // bonus cannot be farmed by clicking another option.
   function choose(d: (typeof decisions)[number]) {
+    if (decision) return;
     setDecision(d.key);
     if (d.correct) {
-      addXP(50);
+      setBonusAwarded(awardMissionBonus(1, 50));
       completeMission(1, 100);
-    } else if (d.key === "cefixime") {
+    } else if (d.key === "cefixime" && !penalized) {
+      setPenalized(true);
       addXP(-30);
     }
   }
 
+  const picked = decision ? decisions.find((d) => d.key === decision)! : null;
+
   return (
-    <div className="anim-in" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    <div className="anim-in">
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
       {/* Dossier pasien */}
       <div className="card">
         <span className="tag tag-cyan">MISI 01 — INFECTION DETECTIVE</span>
@@ -126,16 +136,18 @@ export default function Mission1() {
           <h3 style={{ fontSize: 16, marginBottom: 12 }}>⚕ Decision Action</h3>
           <div style={{ display: "grid", gap: 8 }}>
             {decisions.map((d) => {
-              const picked = decision === d.key;
+              const isPicked = decision === d.key;
               return (
                 <button
                   key={d.key}
                   className="btn"
                   onClick={() => choose(d)}
+                  disabled={!!decision}
                   style={{
                     justifyContent: "flex-start",
-                    background: picked ? (d.correct ? "var(--secondary-container)" : "var(--red)") : "var(--surface-high)",
-                    border: picked ? `1px solid ${d.correct ? "var(--secondary)" : "var(--danger)"}` : "1px solid transparent",
+                    opacity: decision && !isPicked ? 0.5 : 1,
+                    background: isPicked ? (d.correct ? "var(--secondary-container)" : "var(--red)") : "var(--surface-high)",
+                    border: isPicked ? `1px solid ${d.correct ? "var(--secondary)" : "var(--danger)"}` : "1px solid transparent",
                   }}
                 >
                   {d.text}
@@ -143,7 +155,7 @@ export default function Mission1() {
               );
             })}
           </div>
-          {decision && (
+          {picked && (
             <div
               className="anim-in"
               style={{
@@ -152,18 +164,22 @@ export default function Mission1() {
                 borderRadius: "var(--radius-sm)",
                 fontSize: 13.5,
                 lineHeight: 1.7,
-                background: decisions.find((d) => d.key === decision)?.correct ? "var(--secondary-dim)" : "var(--red-dim)",
-                border: `1px solid ${decisions.find((d) => d.key === decision)?.correct ? "var(--secondary)" : "var(--red)"}`,
+                background: picked.correct ? "var(--secondary-dim)" : "var(--red-dim)",
+                border: `1px solid ${picked.correct ? "var(--secondary)" : "var(--red)"}`,
               }}
             >
-              {decisions.find((d) => d.key === decision)?.fb}
-              {decisions.find((d) => d.key === decision)?.correct && (
-                <div className="mono" style={{ marginTop: 8, color: "var(--secondary)", fontWeight: 700 }}>+100 XP • MISI 1 SELESAI ✓</div>
+              {picked.fb}
+              {picked.correct && (
+                <div className="mono" style={{ marginTop: 8, color: "var(--secondary)", fontWeight: 700 }}>
+                  {bonusAwarded ? "+100 XP • MISI 1 SELESAI ✓" : "MISI 1 SELESAI ✓ — bonus sudah pernah diklaim"}
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
+    </div>
+      <MissionFooter mission={1} complete={picked?.correct ?? false} onRetry={picked ? () => setDecision(null) : undefined} />
     </div>
   );
 }

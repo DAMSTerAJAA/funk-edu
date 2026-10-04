@@ -1,5 +1,5 @@
 # Product Requirement Document (PRD) — Edisi Komprehensif Teknis & Arsitektur Frontend
-## FUNK EDU — Antibiotic Fundamentals Lab & PK/PD Clinical Decision Simulator
+## FUNK EDU — Antibiotic Fundamentals Lab & Resistance Evolution Simulator
 *Version: 2.0.0-PROD | Status: Approved Specification | Target: Web Desktop Medical Workstation (1440px+)*
 
 ---
@@ -20,7 +20,7 @@ FUNK EDU tetap satu SPA dengan satu account state, tetapi akses efektif dipisahk
 2. **Student registration**: masuk ke Student pre-test, Student dashboard, enam misi fundamental, Decision Room, post-test, dan Student Completion Certificate.
 3. **Professional registration**: tidak langsung memperoleh akses. Pengguna masuk ke full-page Professional Verification dengan langkah `Profesi`, `Data registrasi`, `Review`, dan `Status`.
 4. **Student upgrade**: Student dapat membuka verifikasi dari Student dashboard. Status pending, rejected, atau unavailable tidak mengubah effective experience dan tidak menghapus XP, badges, skor, atau mission completion Student.
-5. **Verified Professional**: hanya result `verified` yang mengubah `experience` menjadi `professional`. Setelah itu pengguna wajib menyelesaikan Professional Clinical Baseline enam soal sebelum Workbench, Clinical Decision Room, atau Prescription Audit.
+5. **Verified Professional**: hanya result `verified` yang mengubah `experience` menjadi `professional`. Setelah itu pengguna wajib menyelesaikan Professional Clinical Baseline enam soal sebelum Resistance Lab, Clinical Decision Room, atau Prescription Audit.
 6. **Professional completion**: Professional post-test terbuka setelah tiga modul klinis selesai. Passing grade tetap `>= 8/10` dan menghasilkan Professional Track Certificate yang berbeda dari Student certificate.
 
 State efektif yang dirender:
@@ -91,17 +91,13 @@ Credential yang dihasilkan adalah educational prototype. Professional certificat
   │     │     │     ├── <SpectrumTrioCards (Narrow vs Broad vs Reserve) />
   │     │     │     └── <CollateralDamageVerdictTray />
   │     │     │
-  │     │     ├── Misi 4 & Workbench: <PKPDWorkbenchModule>
-  │     │     │     ├── <PatientBioDataICU />
-  │     │     │     ├── <RegimenControllerSteppers>
-  │     │     │     │     ├── <DoseStepper Gram="2.25|3.375|4.5|6.75" />
-  │     │     │     │     ├── <IntervalPills tau="6h|8h|12h" />
-  │     │     │     │     ├── <InfusionDurationPills Tinf="30m|3h|4h" />
-  │     │     │     │     └── <MICBreakpointPills value="0.5-16.0" />
-  │     │     │     ├── <InteractiveMultiDoseSVGChart (8 Doses, 0-48h) />
-  │     │     │     ├── <AttainmentProgressBar target="70%" current="%" />
-  │     │     │     ├── <BacterialDynamicsPetriDish (0h, 12h, 24h, 36h, 48h) />
-  │     │     │     └── <StewardshipScorecardBreakdown />
+  │     │     ├── Misi 4: <ResistanceLabModule>
+  │     │     │     ├── <DoseControlSlider value="0-10x MIC-S" />
+  │     │     │     ├── <PresetScenarioList (Full|EarlyStop|SubTherapeutic|NoTreatment) />
+  │     │     │     ├── <PopulationPetriDish (S vs R colonies, log scale) />
+  │     │     │     ├── <PopulationLogChart /> & <ResistantFractionChart />
+  │     │     │     ├── <KeyConceptCards (FitnessCost|MIC|Mutation|HGT|ImmuneClearance) />
+  │     │     │     └── <ClinicalVerdictBanner (Cured|Resistant|Relapse|Ended) />
   │     │     │
   │     │     ├── Misi 5: <ResistanceEvolutionModule>
   │     │     │     ├── <PetriTimelineArray (Day 0, Day 5, Day 10) />
@@ -175,36 +171,42 @@ interface GlobalBiolabState {
   professionalAssessment: {
     baselineScore: number | null;
     baselineDone: boolean;
-    workbenchDone: boolean;
+    resistanceLabDone: boolean;
     clinicalRoomDone: boolean;
     prescriptionAuditDone: boolean;
     posttestScore: number | null;
     posttestDone: boolean;
     professionalCertificateUnlocked: boolean;
   };
-  simulation: SimulationConfig;
 }
 ```
 
 Student assessment tidak disalin ke Professional assessment. Upgrade mempertahankan Student evidence tetapi selalu menginisialisasi Professional baseline, module flags, post-test, dan certificate state sebagai kosong.
 
-#### 4.2. Algoritma Perhitungan Kinetika Plasma Bebas ($fC$) Satu Kompartemen IV Infus
-Untuk obat *Time-Dependent* seperti Piperacillin-Tazobactam:
-1. **Klirens Obat ($CL$) dan Volume Distribusi ($V_d$):**
-   $$V_d = 0.20 \times \text{Berat Badan (kg)}$$
-   $$k_e = \frac{\ln(2)}{t_{1/2}} \approx \frac{0.693}{1.0} = 0.693 \text{ jam}^{-1}$$
-   $$CL = k_e \times V_d$$
-2. **Konsentrasi Plasma Selama Infus ($0 \le t \le T_{\text{inf}}$):**
-   $$C(t) = \frac{\text{Dosis}}{T_{\text{inf}} \times CL} \times \left(1 - e^{-k_e \cdot t}\right) + C_0 \cdot e^{-k_e \cdot t}$$
-3. **Konsentrasi Plasma Pasca Infus / Fase Eliminasi ($t > T_{\text{inf}}$):**
-   $$C(t) = C_{\text{peak}} \times e^{-k_e \cdot (t - T_{\text{inf}})}$$
-4. **Fraksi Waktu Bebas di Atas MIC ($\%fT > \text{MIC}$):**
-   Fraksi konsentrasi obat tak terikat protein ($f_u = 1 - 0.30 = 0.70$):
-   $$fC(t) = C(t) \times f_u$$
-   $$\%fT > \text{MIC} = \frac{\text{Waktu kumulatif di mana } fC(t) \ge \text{MIC}}{\tau} \times 100\%$$
-   - Bila $\%fT > \text{MIC} \ge 70\% \rightarrow$ **Optimal Bakterisidal** (Eradikasi kuman total, mutasi tertekan).
-   - Bila $50\% \le \%fT > \text{MIC} < 70\% \rightarrow$ **Sub-optimal Bakteriostatik** (Risiko kolonisasi resisten sekunder).
-   - Bila $\%fT > \text{MIC} < 50\% \rightarrow$ **Kegagalan Terapi / Seleksi Mutan Aktif**.
+#### 4.2. Algoritma Simulasi Evolusi Resistensi (Model Populasi S vs R)
+Model edukatif yang disederhanakan — bukan farmakokinetik klinis riil. Galur rentan (S) dan resisten (R) dibagi dengan `SUBSTEPS = 10` langkah per hari:
+
+1. **Laju Bunuh Bergantung Konsentrasi:**
+   $$k(C, \text{MIC}) = \frac{K_{\max} \cdot (C/\text{MIC})^2}{1 + (C/\text{MIC})^2}, \quad K_{\max} = 1.4$$
+2. **Tekanan Kapasitas (Carrying Capacity) $K = 5 \times 10^6$:**
+   $$\text{crowd} = 1 - \frac{N}{K}, \quad N = S + R$$
+3. **Flux Mutasi & Transfer Gen Horizontal:**
+   $$\text{mutFlux} = S \cdot g_S \cdot \mu, \quad \mu = 2 \times 10^{-6}$$
+   $$\text{hgtFlux} = \frac{c \cdot S \cdot R}{K} \left(1 + \frac{0.5 \, C}{\text{MIC}_S}\right), \quad c = 0.02$$
+4. **Eliminasi Imun Inang** (aktif hanya saat beban rendah):
+   $$k_{\text{imun}} = k_{\text{imun,max}} \left(1 - \frac{N}{N_{\text{threshold}}}\right) \quad \text{bila } N < 800$$
+5. **Persamaan Diferensial Populasi:**
+   $$\frac{dS}{dt} = S\,(g_S \cdot \text{crowd} - k_S - k_{\text{imun}}) - \text{mutFlux} - \text{hgtFlux}$$
+   $$\frac{dR}{dt} = R\,(g_R \cdot \text{crowd} - k_R - k_{\text{imun}}) + \text{mutFlux} + \text{hgtFlux}$$
+   dengan $g_S = 0.55$ dan fitness cost 12%: $g_R = g_S (1 - 0.12)$.
+6. **Konstanta MIC:** $\text{MIC}_S = 1.0$ dan $\text{MIC}_R = 8.0$ (kelipatan MIC galur rentan).
+7. **Verdict Akhir** (setelah `MAX_DAYS = 34` atau eradikasi):
+   - $N < 0.5 \rightarrow$ **Sembuh Total** (eradikasi).
+   - $\%R > 40 \rightarrow$ **Resistensi Terseleksi Kuat**.
+   - $N > 5 \times 10^5 \rightarrow$ **Infeksi Kambuh (Relapse)**.
+   - Selainnya $\rightarrow$ **Simulasi Berakhir**.
+
+Verdict **Sembuh Total** menyelesaikan Misi 4 dan mengklaim +150 XP.
 
 ---
 
@@ -225,13 +227,13 @@ Untuk obat *Time-Dependent* seperti Piperacillin-Tazobactam:
 
 3. **Interaktivitas Visual & Animasi:**
    - Kurva gelombang plasma SVG menggunakan efek drop-shadow / filter neon glow `#00f0ff`.
-   - Cawan petri mikrobiologi merender koloni berbentuk lingkaran SVG secara dinamis berdasarkan parameter regresi waktu (0 jam hingga 48 jam).
+   - Cawan petri mikrobiologi merender koloni berbentuk lingkaran SVG secara dinamis berdasarkan kepadatan dan proporsi galur resisten pada skala logaritmik.
    - State transisi hover tombol dan stepper menerapkan `transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1)` dengan efek active scale `0.98`.
 
 ---
 
 ### 6. Rencana Implementasi & Pengujian Kualitas
-- **Unit Testing Kinetika:** Validasi keakuratan rumus $\%fT > \text{MIC}$ terhadap data rujukan *EUCAST* dan *Clinical Pharmacokinetics Handbook*.
+- **Unit Testing Model Resistensi:** Validasi arah tren populasi S vs R terhadap perilaku yang diharapkan (dosis sub-MIC menyeleksi R; eradikasi hanya saat kadar melampaui MIC-R).
 - **Rendering Benchmark:** Memastikan seluruh animasi kurva SVG, diagram sel bakteri, dan timeline cawan petri beroperasi stabil pada $\ge 60 \text{ FPS}$ di resolusi desktop $1440 \times 900$ hingga $2560 \times 1440$.
 - **Responsivitas Layar:** Menggunakan CSS Grid modular (12 kolom desktop) yang secara adaptif dapat dirampingkan ke tablet tanpa menghilangkan visibilitas telemetri pasien.
 

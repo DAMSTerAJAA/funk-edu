@@ -3,6 +3,7 @@
 // ============================================================
 import { useState } from "react";
 import { useStore } from "../../store";
+import MissionFooter from "../../components/MissionFooter";
 
 const OPTIONS = [
   {
@@ -35,8 +36,9 @@ const OPTIONS = [
 ];
 
 export default function Mission3() {
-  const { completeMission, addXP } = useStore();
+  const { completeMission, awardMissionBonus } = useStore();
   const [picked, setPicked] = useState<string | null>(null);
+  const [bonusAwarded, setBonusAwarded] = useState(false);
 
   // skenario: pneumonia komunitas, kultur S. pneumoniae sensitif amoksisilin
   const correctId = "narrow";
@@ -47,9 +49,10 @@ export default function Mission3() {
     : null;
 
   function choose(id: string) {
+    if (picked) return; // one-shot: the first choice stands
     setPicked(id);
     if (id === correctId) {
-      addXP(40);
+      setBonusAwarded(awardMissionBonus(3, 40));
       completeMission(3, 120);
     }
   }
@@ -74,8 +77,9 @@ export default function Mission3() {
               <button
                 key={o.id}
                 onClick={() => choose(o.id)}
+                disabled={!!picked}
                 className="card"
-                style={{ textAlign: "left", cursor: "pointer", borderColor: border, color: "var(--text-primary)", transition: "var(--transition)" }}
+                style={{ textAlign: "left", cursor: picked ? "not-allowed" : "pointer", borderColor: border, color: "var(--text-primary)", transition: "var(--transition)", opacity: picked && !active ? 0.5 : 1 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <h3 style={{ fontSize: 18, flex: 1 }}>{o.name}</h3>
@@ -114,11 +118,12 @@ export default function Mission3() {
               }}
             >
               {result.text}
-              {result.ok && <div className="mono" style={{ marginTop: 8, color: "var(--secondary)", fontWeight: 700 }}>+120 XP • MISI 3 SELESAI ✓</div>}
+              {result.ok && <div className="mono" style={{ marginTop: 8, color: "var(--secondary)", fontWeight: 700 }}>{bonusAwarded ? "+120 XP • MISI 3 SELESAI ✓" : "MISI 3 SELESAI ✓ — bonus sudah pernah diklaim"}</div>}
             </div>
           )}
         </div>
       </div>
+      <MissionFooter mission={3} complete={result?.ok ?? false} onRetry={picked ? () => setPicked(null) : undefined} />
     </div>
   );
 }

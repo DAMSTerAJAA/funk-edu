@@ -2,7 +2,7 @@ import type { Experience, ProfessionalVerificationState } from "./types";
 
 export type Route =
   | "auth" | "pretest" | "student-dashboard" | "professional-dashboard" | "professional-verification" | "professional-baseline"
-  | "mission" | "workbench" | "resistance-lab" | "clinical-room" | "professional-audit" | "final-challenge" | "posttest" | "certificate" | "profile";
+  | "mission" | "resistance-lab" | "clinical-room" | "professional-audit" | "final-challenge" | "posttest" | "certificate" | "profile";
 
 export interface RouteMeta {
   label: string;
@@ -17,7 +17,7 @@ export interface RouteState {
   onboardingIntent: Experience;
   professionalVerification: ProfessionalVerificationState;
   studentAssessment: { completedMissions: number[]; clinicalRoomDone: boolean; posttestDone: boolean; posttestScore: number | null };
-  professionalAssessment: { baselineDone: boolean; workbenchDone: boolean; clinicalRoomDone: boolean; prescriptionAuditDone: boolean; posttestDone: boolean; professionalCertificateUnlocked: boolean };
+  professionalAssessment: { baselineDone: boolean; resistanceLabDone: boolean; clinicalRoomDone: boolean; prescriptionAuditDone: boolean; posttestDone: boolean; professionalCertificateUnlocked: boolean };
 }
 
 export const ROUTES: Record<Route, RouteMeta> = {
@@ -28,7 +28,6 @@ export const ROUTES: Record<Route, RouteMeta> = {
   "professional-verification": { label: "Professional Verification", shellVisible: true },
   "professional-baseline": { label: "Professional Baseline", shellVisible: true, requiredExperience: "professional" },
   mission: { label: "Missions", shellVisible: true, requiredExperience: "student", progressionGuard: (s) => s.studentAssessment.completedMissions.includes(1) },
-  workbench: { label: "PK/PD Workbench", shellVisible: true },
   "resistance-lab": { label: "Resistance Lab", shellVisible: true },
   "clinical-room": { label: "Decision Room", shellVisible: true },
   "professional-audit": { label: "Prescription Audit", shellVisible: true, requiredExperience: "professional" },
@@ -49,7 +48,7 @@ export function resolveRoute(requested: Route, state: RouteState): Route {
   if (!verified && requested === "professional-dashboard") return "student-dashboard";
   if (!verified && requested === "professional-baseline") return "student-dashboard";
   if (verified && requested === "professional-baseline" && state.professionalAssessment.baselineDone) return "professional-dashboard";
-  if (verified && !state.professionalAssessment.baselineDone && ["workbench", "clinical-room", "professional-audit", "final-challenge", "posttest", "certificate"].includes(requested)) return "professional-baseline";
+  if (verified && !state.professionalAssessment.baselineDone && ["resistance-lab", "clinical-room", "professional-audit", "final-challenge", "posttest", "certificate"].includes(requested)) return "professional-baseline";
   if (verified && requested === "mission") return "professional-dashboard";
   if (!verified && requested === "professional-audit") return "student-dashboard";
   if (requested === "certificate") {
@@ -58,7 +57,7 @@ export function resolveRoute(requested: Route, state: RouteState): Route {
   }
   if (requested === "clinical-room" && !verified && state.studentAssessment.completedMissions.length < 6) return "student-dashboard";
   if (requested === "posttest") {
-    if (verified && !(state.professionalAssessment.workbenchDone && state.professionalAssessment.clinicalRoomDone && state.professionalAssessment.prescriptionAuditDone)) return "professional-dashboard";
+    if (verified && !(state.professionalAssessment.resistanceLabDone && state.professionalAssessment.clinicalRoomDone && state.professionalAssessment.prescriptionAuditDone)) return "professional-dashboard";
     if (!verified && !state.studentAssessment.clinicalRoomDone) return "student-dashboard";
   }
   if (!verified && requested === "final-challenge" && state.studentAssessment.completedMissions.length < 6) return "student-dashboard";

@@ -1,8 +1,8 @@
-# FUNK EDU — Antibiotic Fundamentals Lab & PK/PD Clinical Decision Simulator
+# FUNK EDU — Antibiotic Fundamentals Lab & Resistance Evolution Simulator
 
 > *Understand the drug. Outsmart resistance. Protect the future.*
 
-Platform edukasi web untuk melatih pengambilan keputusan peresepan antimikroba rasional melalui simulasi farmakokinetik/farmakodinamik (PK/PD), kepatuhan **WHO AWaRe**, dan prinsip **5 Benar** — ditujukan untuk mahasiswa kedokteran, dokter umum, residen PPDS, dan farmasis klinis.
+Platform edukasi web untuk melatih pengambilan keputusan peresepan antimikroba rasional melalui simulasi evolusi resistensi, kepatuhan **WHO AWaRe**, dan prinsip **5 Benar** — ditujukan untuk mahasiswa kedokteran, dokter umum, residen PPDS, dan farmasis klinis.
 
 ![Status](https://img.shields.io/badge/status-prototype-00f0ff)
 ![Stack](https://img.shields.io/badge/stack-React%2019%20%C2%B7%20TypeScript%20%C2%B7%20Vite%20%C2%B7%20Zustand-4edea3)
@@ -16,15 +16,15 @@ Platform edukasi web untuk melatih pengambilan keputusan peresepan antimikroba r
 | **Track-first Onboarding** | Pilih Student atau Professional; Professional masuk ke verifikasi sebelum memperoleh akses |
 | **Prototype Professional Verification** | Adapter deterministik dengan status pending/verified/rejected/unavailable; bukan validasi KKI/SATUSEHAT |
 | **Student Assessment Suite** | Pre-test, 6 misi fundamental, Decision Room, post-test, dan Student Completion Certificate |
-| **Professional Clinical Track** | Baseline 6 soal, PK/PD Workbench, Clinical Decision Room, Prescription Audit, post-test, dan Professional Track Certificate |
+| **Professional Clinical Track** | Baseline 6 soal, Resistance Lab, Clinical Decision Room, Prescription Audit, post-test, dan Professional Track Certificate |
 | **Progress Preservation** | Fondasi Student tetap tersimpan saat upgrade; tidak memenuhi gate atau sertifikat Professional |
-| **PK/PD Workbench** | Simulasi 1-kompartemen IV infus real-time: 5 agen, slider dosis/τ/Tinf/MIC, kurva plasma 48 jam, %fT>MIC attainment, dinamika cawan petri |
+| **Resistance Lab (Misi 4)** | Simulasi evolusi populasi rentan (S) vs resisten (R): slider dosis × MIC, 4 skenario preset, cawan petri, grafik populasi & proporsi resisten, verdict klinis |
 
 ## Tech Stack
 
 - **React 19** + **TypeScript** + **Vite**
 - **Zustand** — state management terpisah untuk identitas, Student assessment, Professional assessment, dan verification state
-- **SVG custom** — kurva plasma neon, petri dish, radar chart (tanpa chart library)
+- **SVG custom** — grafik populasi neon, petri dish, radar chart (tanpa chart library)
 - Font: Space Grotesk · JetBrains Mono · Plus Jakarta Sans
 
 ## Menjalankan Lokal
@@ -49,8 +49,8 @@ FUNKEDU/
 │   └── prd.md                  # Product Requirement Document (spesifikasi penuh)
 └── app/                        # Frontend React
     └── src/
-        ├── components/         # AppShell, PlasmaCurve, PetriDish, RadarChart
-        ├── data/               # pkEngine, drugs, content, centralized personas
+        ├── components/         # AppShell, MissionFooter, PetriDish, RadarChart
+        ├── data/               # resistanceEngine, content, centralized personas
         ├── services/           # ProfessionalVerificationService + deterministic prototype adapter
         ├── screens/            # Track onboarding, verification, Student/Professional dashboards, learning, certificates
         │   └── missions/       # Misi 1–6
@@ -59,14 +59,15 @@ FUNKEDU/
         └── types.ts            # Account, verification, and assessment domain types
 ```
 
-## Model Farmakokinetik
+## Model Simulasi Resistensi
 
-Workbench mengimplementasikan model satu-kompartemen IV infus (PRD §4.2):
+Resistance Lab mengimplementasikan model populasi S vs R tereduksi (PRD §4.2):
 
-- Konsentrasi selama infus: `C(t) = Dosis/(Tinf·CL) × (1 − e^(−ke·t))`
-- Eliminasi pasca-infus: `C(t) = Cpeak × e^(−ke·(t−Tinf))`
-- Target β-laktam: **%fT > MIC ≥ 70%** (bakterisidal optimal)
-- Target aminoglikosida: **Cmax/MIC ≥ 10**; FQ/vankomisin: **AUC/MIC**
+- Laju bunuh bergantung konsentrasi: `k(C, MIC) = Kmax·(C/MIC)² / (1 + (C/MIC)²)`
+- Flux mutasi spontan (μ = 2×10⁻⁶) dan transfer gen horizontal (konjugasi plasmid)
+- Fitness cost galur resisten 12% saat tidak ada tekanan obat
+- Eliminasi oleh imun inang saat beban bakteri < 800 sel
+- Verdict **Sembuh Total** (eradikasi) menyelesaikan Misi 4 dan mengklaim +150 XP
 
 ## Disclaimer
 

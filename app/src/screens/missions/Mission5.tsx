@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useStore } from "../../store";
 import PetriDish from "../../components/PetriDish";
+import MissionFooter from "../../components/MissionFooter";
 
 const TIMELINE = [
   {
@@ -30,16 +31,18 @@ const TIMELINE = [
 ];
 
 export default function Mission5() {
-  const { completeMission, addXP } = useStore();
+  const { completeMission, awardMissionBonus } = useStore();
   const [dayIdx, setDayIdx] = useState(0);
   const [quiz, setQuiz] = useState<string | null>(null);
+  const [bonusAwarded, setBonusAwarded] = useState(false);
 
   const day = TIMELINE[dayIdx];
 
   function answer(key: string) {
+    if (quiz) return; // one-shot: the first decision stands
     setQuiz(key);
     if (key === "ei") {
-      addXP(40);
+      setBonusAwarded(awardMissionBonus(5, 40));
       completeMission(5, 140);
     }
   }
@@ -145,9 +148,11 @@ export default function Mission5() {
                 <div key={o.key}>
                   <button
                     className="btn"
+                    disabled={!!quiz}
                     style={{
                       width: "100%",
                       justifyContent: "flex-start",
+                      opacity: quiz && quiz !== o.key ? 0.5 : 1,
                       background: quiz === o.key ? (o.ok ? "var(--secondary-container)" : "var(--red)") : "var(--surface-high)",
                     }}
                     onClick={() => answer(o.key)}
@@ -156,7 +161,7 @@ export default function Mission5() {
                   </button>
                   {quiz === o.key && (
                     <div className="anim-in" style={{ marginTop: 6, fontSize: 12.5, padding: "10px 14px", borderRadius: "var(--radius-sm)", background: o.ok ? "var(--secondary-dim)" : "var(--red-dim)", lineHeight: 1.6 }}>
-                      {o.fb} {o.ok && <div className="mono" style={{ color: "var(--secondary)", fontWeight: 700, marginTop: 6 }}>+140 XP • MISI 5 SELESAI ✓</div>}
+                      {o.fb} {o.ok && <div className="mono" style={{ color: "var(--secondary)", fontWeight: 700, marginTop: 6 }}>{bonusAwarded ? "+140 XP • MISI 5 SELESAI ✓" : "MISI 5 SELESAI ✓ — bonus sudah pernah diklaim"}</div>}
                     </div>
                   )}
                 </div>
@@ -165,6 +170,7 @@ export default function Mission5() {
           </div>
         </div>
       </div>
+      <MissionFooter mission={5} complete={quiz === "ei"} onRetry={quiz ? () => setQuiz(null) : undefined} />
     </div>
   );
 }

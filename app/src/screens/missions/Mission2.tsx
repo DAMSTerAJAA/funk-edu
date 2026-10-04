@@ -3,6 +3,7 @@
 // ============================================================
 import { useState } from "react";
 import { useStore } from "../../store";
+import MissionFooter from "../../components/MissionFooter";
 
 const TARGETS = [
   { id: "cell-wall", label: "Dinding Sel (PBP)", x: 380, y: 60, mechanism: "β-laktam (Penisilin, Sefalosporin, Karbapenem) & Glikopeptida berikatan pada PBP/menghambat transpeptidasi peptidoglikan → lisis sel. Time-dependent: %fT > MIC.", drugs: ["Penisilin", "Seftriakson", "Meropenem", "Vankomisin"] },
@@ -21,12 +22,20 @@ const QUIZ_DRUGS = [
 ];
 
 export default function Mission2() {
-  const { completeMission, addXP } = useStore();
+  const { completeMission, awardMissionBonus } = useStore();
   const [selected, setSelected] = useState(TARGETS[0]);
   const [quizIdx, setQuizIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [bonusAwarded, setBonusAwarded] = useState(false);
+
+  function resetQuiz() {
+    setQuizIdx(0);
+    setScore(0);
+    setDone(false);
+    setFeedback(null);
+  }
 
   const quiz = QUIZ_DRUGS[quizIdx];
 
@@ -39,6 +48,7 @@ export default function Mission2() {
           <h2 style={{ marginTop: 14 }}>Kuis selesai</h2>
           <p style={{ color: "var(--text-muted)", marginTop: 8 }}>Semua soal sudah dijawab. Kembali ke dashboard untuk melanjutkan.</p>
         </div>
+        <MissionFooter mission={2} complete={score >= 4} onRetry={done ? resetQuiz : undefined} />
       </div>
     );
   }
@@ -60,7 +70,7 @@ export default function Mission2() {
         setDone(true);
         const finalScore = correct ? score + 1 : score;
         if (finalScore >= 4) {
-          addXP(40);
+          setBonusAwarded(awardMissionBonus(2, 40));
           completeMission(2, 120);
         }
       } else {
@@ -70,7 +80,8 @@ export default function Mission2() {
   }
 
   return (
-    <div className="anim-in" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20 }}>
+    <div className="anim-in">
+    <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20 }}>
       {/* Sel bakteri interaktif */}
       <div className="card">
         <span className="tag tag-mint">MISI 02 — TARGET HUNTER</span>
@@ -91,7 +102,7 @@ export default function Mission2() {
             </>
           ) : (
             <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: score >= 4 ? "var(--secondary)" : "var(--amber)" }}>
-              KUIS SELESAI — skor {score}/{QUIZ_DRUGS.length} {score >= 4 ? "• MISI 2 ✓ +120 XP" : "• butuh ≥ 4, coba ulangi (reset halaman)"}
+              KUIS SELESAI — skor {score}/{QUIZ_DRUGS.length} {score >= 4 ? (bonusAwarded ? "• MISI 2 ✓ +120 XP" : "• MISI 2 ✓ — bonus sudah diklaim") : "• butuh ≥ 4, tekan “↻ Coba lagi” di bawah"}
             </span>
           )}
         </div>
@@ -148,6 +159,8 @@ export default function Mission2() {
           yang harus dioptimalkan — β-laktam: waktu di atas MIC; aminoglikosida & FQ: puncak/AUC terhadap MIC.
         </div>
       </div>
+    </div>
+      <MissionFooter mission={2} complete={score >= 4} onRetry={done ? resetQuiz : undefined} />
     </div>
   );
 }

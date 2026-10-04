@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useStore } from "../../store";
 import { AUDIT_CASES, useContentStatus } from "../../data/content";
+import MissionFooter from "../../components/MissionFooter";
 
 const FIVE_R = [
   { id: "patient", label: "Right Patient", desc: "Indikasi infeksi bakteri terkonfirmasi/dugaan kuat" },
@@ -15,10 +16,11 @@ const FIVE_R = [
 
 export default function Mission6() {
   useContentStatus();
-  const { completeMission, completeSharedModule, addXP, user } = useStore();
+  const { completeMission, completeSharedModule, awardMissionBonus, addXP, user, professionalAssessment } = useStore();
   const target = user.experience === "professional" ? "professional" : "student";
   const [checks, setChecks] = useState<string[]>([]);
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
+  const [bonusAwarded, setBonusAwarded] = useState(false);
 
   const allAudited = Object.keys(verdicts).length === AUDIT_CASES.length;
   const correctCount = AUDIT_CASES.filter((c) => verdicts[c.id] === c.status).length;
@@ -33,9 +35,15 @@ export default function Mission6() {
     if (Object.keys(next).length === AUDIT_CASES.length) {
       const cc = AUDIT_CASES.filter((c) => next[c.id] === c.status).length;
       if (cc === AUDIT_CASES.length) {
-        addXP(50);
-        if (target === "student") completeMission(6, 130);
-        else completeSharedModule("prescription-audit", "professional");
+        if (target === "student") {
+          setBonusAwarded(awardMissionBonus(6, 50));
+          completeMission(6, 130);
+        } else if (!professionalAssessment.prescriptionAuditDone) {
+          // Professional bonus rides on the persisted module flag, so it cannot be re-farmed
+          setBonusAwarded(true);
+          addXP(50);
+          completeSharedModule("prescription-audit", "professional");
+        }
       }
     }
   }
@@ -137,14 +145,19 @@ export default function Mission6() {
                 Audit selesai: {correctCount}/3 verdict tepat.
               </strong>
               {correctCount === 3 ? (
-                <div className="mono" style={{ color: "var(--secondary)", fontWeight: 700, marginTop: 6 }}>+130 XP • MISI 6 SELESAI ✓ — SEMUA MISI TUNTAS, DECISION ROOM TERBUKA!</div>
+                <div className="mono" style={{ color: "var(--secondary)", fontWeight: 700, marginTop: 6 }}>
+                  {target === "student"
+                    ? bonusAwarded ? "+130 XP • MISI 6 SELESAI ✓ — SEMUA MISI TUNTAS, DECISION ROOM TERBUKA!" : "MISI 6 SELESAI ✓ — bonus sudah diklaim. SEMUA MISI TUNTAS, DECISION ROOM TERBUKA!"
+                    : bonusAwarded ? "+130 XP • PRESCRIPTION AUDIT SELESAI ✓" : "PRESCRIPTION AUDIT SELESAI ✓ — bonus sudah diklaim"}
+                </div>
               ) : (
-                <div style={{ fontSize: 13, marginTop: 6, color: "var(--text-secondary)" }}>Muat ulang halaman misi untuk mencoba lagi hingga 3/3 tepat.</div>
+                <div style={{ fontSize: 13, marginTop: 6, color: "var(--text-secondary)" }}>Tekan “↻ Coba lagi” di bawah untuk mengulang audit hingga 3/3 tepat.</div>
               )}
             </div>
           )}
         </div>
       </div>
+      <MissionFooter mission={6} complete={allAudited && correctCount === AUDIT_CASES.length} onRetry={allAudited ? () => setVerdicts({}) : undefined} />
     </div>
   );
 }

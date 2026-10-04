@@ -6,7 +6,7 @@ export default function ProfessionalDashboardScreen() {
   const { user, studentAssessment, professionalAssessment, navigate, setExam } = useStore();
   const role = user.professionalVerification.verifiedRole;
   const persona = role ? PERSONAS[role] : null;
-  const modulesDone = professionalAssessment.workbenchDone && professionalAssessment.clinicalRoomDone && professionalAssessment.prescriptionAuditDone;
+  const modulesDone = professionalAssessment.resistanceLabDone && professionalAssessment.clinicalRoomDone && professionalAssessment.prescriptionAuditDone;
   const fundamentals = [
     Math.min(98, (studentAssessment.pretestScore ?? 0) * 8 + studentAssessment.completedMissions.length * 4),
     Math.min(98, 30 + studentAssessment.completedMissions.length * 8),
@@ -15,7 +15,7 @@ export default function ProfessionalDashboardScreen() {
     Math.min(98, 30 + studentAssessment.completedMissions.length * 7),
   ];
   const modules = [
-    { title: "PK/PD Workbench", done: professionalAssessment.workbenchDone, route: "workbench" as const, description: "Complete one optimal PK/PD challenge." },
+    { title: "Resistance Lab", done: professionalAssessment.resistanceLabDone, route: "resistance-lab" as const, description: "Run the resistance evolution simulator to a clinical verdict." },
     { title: "Clinical Decision Room", done: professionalAssessment.clinicalRoomDone, route: "clinical-room" as const, description: "Complete the CAP decision journey." },
     { title: "Prescription Audit", done: professionalAssessment.prescriptionAuditDone, route: "professional-audit" as const, description: "Audit all three prescriptions correctly." },
   ];
@@ -30,7 +30,7 @@ export default function ProfessionalDashboardScreen() {
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
       <ModuleCard title="Professional Clinical Baseline" description="Six-question prototype baseline. Completion unlocks Professional modules." done={professionalAssessment.baselineDone} action={professionalAssessment.baselineDone ? "Baseline complete" : "Start baseline"} onClick={() => { setExam("professional-baseline"); navigate("professional-baseline"); }} />
       {modules.map((module) => <ModuleCard key={module.title} title={module.title} description={module.description} done={module.done} locked={!professionalAssessment.baselineDone} action={module.done ? "Complete" : "Open module"} onClick={() => navigate(module.route)} />)}
-      <ModuleCard title="Professional Post-Test & Certificate" description="Requires Workbench, Decision Room, and Prescription Audit. Passing grade ≥ 8/10." done={professionalAssessment.professionalCertificateUnlocked} locked={!modulesDone} action={professionalAssessment.professionalCertificateUnlocked ? "View certificate" : modulesDone ? "Start post-test" : "Complete three modules"} onClick={() => { if (professionalAssessment.professionalCertificateUnlocked) navigate("certificate"); else { setExam("professional-post"); navigate("posttest"); } }} />
+      <ModuleCard title="Professional Post-Test & Certificate" description="Requires Resistance Lab, Decision Room, and Prescription Audit. Passing grade ≥ 8/10." done={professionalAssessment.professionalCertificateUnlocked} locked={!modulesDone} action={professionalAssessment.professionalCertificateUnlocked ? "View certificate" : modulesDone ? "Start post-test" : "Complete three modules"} onClick={() => { if (professionalAssessment.professionalCertificateUnlocked) navigate("certificate"); else { setExam("professional-post"); navigate("posttest"); } }} />
     </div>
   </div>;
 }

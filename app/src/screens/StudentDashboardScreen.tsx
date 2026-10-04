@@ -9,7 +9,7 @@ const MISSIONS = [
   { id: 1, name: "Infection Detective", desc: "Centor Score & diferensiasi viral vs bakteri", icon: "🔍", xp: 100, color: "var(--primary)" },
   { id: 2, name: "Target Hunter", desc: "Peta mekanisme aksi seluler bakteri", icon: "🎯", xp: 120, color: "var(--secondary)" },
   { id: 3, name: "Spectrum Strategy", desc: "WHO AWaRe & perlindungan mikrobioma usus", icon: "🛡️", xp: 120, color: "var(--amber)" },
-  { id: 4, name: "MIC Battle Lab", desc: "Kinetika %fT vs Cmax di PK/PD Workbench", icon: "📈", xp: 150, color: "var(--primary)" },
+  { id: 4, name: "Resistance Lab", desc: "Evolusi resistensi: seleksi galur S vs R di cawan petri", icon: "🧬", xp: 150, color: "var(--primary)" },
   { id: 5, name: "Resistance Evolution", desc: "Seleksi klon mutan & mutant selection window", icon: "🧫", xp: 140, color: "var(--danger)" },
   { id: 6, name: "Wise Guardian", desc: "Audit resep EMR berbasis 5 Benar", icon: "⚖️", xp: 130, color: "var(--secondary)" },
 ];
@@ -111,7 +111,7 @@ export default function StudentDashboardScreen() {
               onClick={() => {
                 if (!unlocked) return;
                 setMission(m.id);
-                navigate(m.id === 4 ? "workbench" : "mission");
+                navigate(m.id === 4 ? "resistance-lab" : "mission");
               }}
               onMouseEnter={(e) => unlocked && (e.currentTarget.style.borderColor = m.color)}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = done ? "var(--secondary)" : "var(--surface-highest)")}
@@ -134,18 +134,11 @@ export default function StudentDashboardScreen() {
       <div className="label" style={{ marginBottom: 12 }}>MODUL LANJUTAN</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
         <div className="card" style={{ borderColor: "var(--primary-dim)" }}>
-          <h3 style={{ fontSize: 17 }}>🧪 PK/PD Workbench</h3>
-          <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 14px" }}>
-            Eksperimen bebas: 5 agen, slider dosis, extended infusion, kurva plasma 48 jam real-time.
-          </p>
-          <button className="btn btn-primary" onClick={() => navigate("workbench")}>Buka Simulator →</button>
-        </div>
-        <div className="card" style={{ borderColor: "var(--primary-dim)" }}>
           <h3 style={{ fontSize: 17 }}>🧬 Resistance Lab</h3>
           <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 14px" }}>
-            Simulasi evolusi resistensi: atur dosis × MIC, jalankan skenario, dan amati seleksi galur rentan vs resisten di cawan petri. Modul eksplorasi bebas.
+            Simulasi evolusi resistensi: atur dosis × MIC, jalankan skenario, dan amati seleksi galur rentan vs resisten di cawan petri.
           </p>
-          <button className="btn btn-secondary" onClick={() => navigate("resistance-lab")}>Buka Lab →</button>
+          <button className="btn btn-primary" onClick={() => navigate("resistance-lab")}>Buka Lab →</button>
         </div>
         <div className="card" style={{ borderColor: allMissionsDone ? "var(--secondary)" : "var(--surface-highest)", opacity: allMissionsDone ? 1 : 0.5 }}>
           <h3 style={{ fontSize: 17 }}>🏥 Clinical Decision Room</h3>

@@ -28,57 +28,12 @@ export interface ProfessionalVerificationState {
 export interface ProfessionalAssessmentState {
   baselineScore: number | null;
   baselineDone: boolean;
-  workbenchDone: boolean;
+  resistanceLabDone: boolean;
   clinicalRoomDone: boolean;
   prescriptionAuditDone: boolean;
   posttestScore: number | null;
   posttestDone: boolean;
   professionalCertificateUnlocked: boolean;
-}
-
-export type DrugId = "piperacillin_tazo" | "meropenem" | "vancomycin" | "gentamicin" | "levofloxacin";
-
-export interface DrugInfo {
-  id: DrugId;
-  name: string;
-  klass: string;
-  aware: "ACCESS" | "WATCH" | "RESERVE";
-  category: "time" | "concentration" | "auc";
-  halfLifeH: number;
-  vdPerKg: number;
-  proteinBinding: number;
-  doseOptionsG: number[];
-  tauOptionsH: number[];
-  tinfOptionsH: number[];
-  micOptions: number[];
-  targetDesc: string;
-  targetPct: number;
-  spectrum: "narrow" | "broad" | "reserve";
-}
-
-export interface SimulationConfig {
-  activeDrug: DrugId;
-  doseGrams: number;
-  intervalHours: number;
-  infusionDurationHours: number;
-  micTarget: number;
-  patientWeightKg: number;
-  crCl: number;
-  steadyStateDoses: number;
-}
-
-export interface SimulationMetrics {
-  cMax: number;
-  cTrough: number;
-  auc24: number;
-  fTOverMic: number;
-  cMaxOverMic: number;
-  aucOverMic: number;
-  isOptimal: boolean;
-  status: "optimal" | "suboptimal" | "failure";
-  colonyCountLive: number;
-  resistantMutantCount: number;
-  microbiomePreservation: number;
 }
 
 export interface AssessmentState {
@@ -89,6 +44,8 @@ export interface AssessmentState {
   answersMap: Record<number, string>;
   unlockedMissions: number[];
   completedMissions: number[];
+  /** Missions whose one-time bonus XP has been granted — blocks farming on re-answer. */
+  bonusMissions: number[];
   earnedBadges: string[];
   finalChallengeDone: boolean;
   clinicalRoomDone: boolean;

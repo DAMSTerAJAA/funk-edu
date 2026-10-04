@@ -1,9 +1,11 @@
 // ============================================================
 // FUNK EDU — Resistance Lab: Simulator Evolusi Resistensi
-// Modul eksplorasi bebas (bukan misi ber-XP). Berdampingan
-// dengan PK/PD Workbench (Misi 4) — tidak saling menggantikan.
+// Misi 04 — seleksi galur rentan vs resisten (S vs R).
+// Verdict "Sembuh Total" menyelesaikan misi dan mengklaim XP.
 // ============================================================
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "../store";
+import MissionFooter from "../components/MissionFooter";
 import {
   advance, fmtDose, fmtInt, fmtPct, initialSim, INTRO_NARRATIVE, IMMUNE_THRESHOLD,
   K, MAX_DAYS, PRESETS, type DayPoint, type PresetKey, type ResistanceSim, type Verdict,
@@ -47,10 +49,16 @@ function verdictDetail(v: Verdict, day: number, N: number, pctR: number) {
 }
 
 export default function ResistanceLabScreen() {
+  const { completeMission, completeSharedModule, awardMissionBonus, addXP, user, studentAssessment, professionalAssessment } = useStore();
+  const target = user.experience === "professional" ? "professional" : "student";
   const [sim, setSim] = useState<ResistanceSim>(() => initialSim());
   const [dose, setDose] = useState(0);
   const [mode, setMode] = useState<Mode>("idle");
   const [presetKey, setPresetKey] = useState<PresetKey | null>(null);
+  const [claimed, setClaimed] = useState(
+    target === "professional" ? professionalAssessment.resistanceLabDone : studentAssessment.completedMissions.includes(4)
+  );
+  const [bonusAwarded, setBonusAwarded] = useState(false);
 
   const simRef = useRef(sim);
   const doseRef = useRef(dose);
@@ -103,6 +111,20 @@ export default function ResistanceLabScreen() {
     setMode("preset");
   }
 
+  function claim() {
+    if (claimed || sim.verdict !== "cured") return;
+    if (target === "student") {
+      setBonusAwarded(awardMissionBonus(4, 50));
+      completeMission(4, 150);
+    } else if (!professionalAssessment.resistanceLabDone) {
+      // Professional bonus rides on the persisted module flag, so it cannot be re-farmed
+      setBonusAwarded(true);
+      addXP(50);
+      completeSharedModule("resistance-lab", "professional");
+    }
+    setClaimed(true);
+  }
+
   const last = sim.history[sim.history.length - 1];
   const N = last.N;
   const locked = mode === "preset";
@@ -113,7 +135,7 @@ export default function ResistanceLabScreen() {
     <div className="anim-in">
       {/* ---------- Header ---------- */}
       <div className="card" style={{ marginBottom: 18 }}>
-        <span className="tag tag-cyan">MODUL EKSPLORASI — RESISTANCE LAB</span>
+        <span className="tag tag-cyan">MISI 04 — RESISTANCE LAB</span>
         <h2 style={{ fontSize: 24, marginTop: 8 }}>Simulator Evolusi Resistensi Antibiotik</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: 13.5, marginTop: 6, maxWidth: 760 }}>
           Model populasi bakteri rentan (S) vs. resisten (R) di bawah tekanan seleksi antibiotik. Atur dosis, jalankan skenario, dan amati bagaimana keputusan terapi menentukan apakah infeksi tuntas — atau justru melahirkan galur yang lebih sulit dibasmi.
@@ -216,8 +238,21 @@ export default function ResistanceLabScreen() {
             )}
 
             <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 14, lineHeight: 1.55 }}>
-              Modul eksplorasi bebas — tidak memengaruhi XP maupun progres misi. Untuk tantangan ber-XP, selesaikan Misi 4 di PK/PD Workbench.
+              Misi 04 — Resistance Lab. Selesaikan simulasi dengan verdict <strong>SEMBUH TOTAL</strong> (preset “Kepatuhan Penuh”) untuk mengklaim XP misi.
             </p>
+
+            <button
+              className="btn btn-primary"
+              style={{ width: "100%", justifyContent: "center", marginTop: 14 }}
+              disabled={sim.verdict !== "cured" || claimed}
+              onClick={claim}
+            >
+              {claimed
+                ? target === "student"
+                  ? bonusAwarded ? "✓ MISI 4 SELESAI (+150 XP)" : "✓ MISI 4 SELESAI — bonus sudah diklaim"
+                  : bonusAwarded ? "✓ RESISTANCE LAB SELESAI (+150 XP)" : "✓ RESISTANCE LAB SELESAI — bonus sudah diklaim"
+                : sim.verdict === "cured" ? "Klaim: Infeksi Tuntas ✓" : "Capai verdict “Sembuh Total” untuk klaim XP"}
+            </button>
           </div>
         </div>
       </div>
@@ -225,6 +260,8 @@ export default function ResistanceLabScreen() {
       <p className="mono" style={{ fontSize: 10.5, color: "var(--text-muted)", textAlign: "center", marginTop: 22 }}>
         Model edukatif disederhanakan untuk ilustrasi konsep (tekanan seleksi, fitness cost, MIC, transfer gen horizontal) — bukan data farmakokinetik klinis riil.
       </p>
+
+      <MissionFooter mission={4} complete={claimed} />
     </div>
   );
 }
